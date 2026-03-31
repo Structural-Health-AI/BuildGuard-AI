@@ -1,6 +1,12 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { AlertTriangle, X } from 'lucide-react'
 
+const T = {
+  white: '#FFFFFF', charcoal: '#1A1A2E',
+  textSecondary: '#6B7280', textMuted: '#9CA3AF',
+  border: '#E5E5E5', terra: '#C2644A',
+}
+
 export default function ConfirmModal({ isOpen, onClose, onConfirm, title, message, confirmText = 'Delete', danger = true }) {
   if (!isOpen) return null
 
@@ -14,7 +20,7 @@ export default function ConfirmModal({ isOpen, onClose, onConfirm, title, messag
           className="fixed inset-0 z-[80] flex items-center justify-center p-4"
         >
           {/* Overlay */}
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+          <div className="absolute inset-0" style={{ background: 'rgba(26, 26, 46, 0.25)', backdropFilter: 'blur(4px)' }} onClick={onClose} />
           
           {/* Modal */}
           <motion.div
@@ -22,17 +28,24 @@ export default function ConfirmModal({ isOpen, onClose, onConfirm, title, messag
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
             transition={{ type: 'spring', damping: 25 }}
-            className="glass-card rounded-2xl p-6 w-full max-w-md relative z-10"
+            className="rounded-xl p-6 w-full max-w-md relative z-10"
+            style={{ background: T.white, border: `1px solid ${T.border}`, boxShadow: '0 20px 50px rgba(0,0,0,0.12)' }}
           >
             <div className="flex items-start gap-4">
-              <div className={`p-2.5 rounded-xl ${danger ? 'bg-coral-500/10' : 'bg-amber-500/10'}`}>
-                <AlertTriangle className={`h-5 w-5 ${danger ? 'text-coral-400' : 'text-amber-400'}`} />
+              <div className="p-2.5 rounded-lg" style={{
+                background: danger ? '#FEF2F2' : '#FFFBEB',
+              }}>
+                <AlertTriangle className="h-5 w-5" style={{
+                  color: danger ? '#DC2626' : '#D97706',
+                }} />
               </div>
               <div className="flex-1">
-                <h3 className="text-lg font-semibold text-white">{title}</h3>
-                <p className="text-sm text-gray-400 mt-1">{message}</p>
+                <h3 className="text-lg font-semibold" style={{ color: T.charcoal }}>{title}</h3>
+                <p className="text-sm mt-1" style={{ color: T.textSecondary }}>{message}</p>
               </div>
-              <button onClick={onClose} className="text-gray-500 hover:text-gray-300 transition-colors">
+              <button onClick={onClose} className="transition-colors" style={{ color: T.textMuted }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = T.charcoal)}
+                onMouseLeave={(e) => (e.currentTarget.style.color = T.textMuted)}>
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -40,17 +53,20 @@ export default function ConfirmModal({ isOpen, onClose, onConfirm, title, messag
             <div className="flex gap-3 mt-6 justify-end">
               <button
                 onClick={onClose}
-                className="px-4 py-2 rounded-xl text-sm font-medium text-gray-400 hover:text-gray-200 hover:bg-white/5 transition-all"
+                className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                style={{ color: T.textSecondary, border: `1px solid ${T.border}` }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = T.charcoal; e.currentTarget.style.color = T.charcoal }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.textSecondary }}
               >
                 Cancel
               </button>
               <button
                 onClick={onConfirm}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                  danger
-                    ? 'bg-coral-500/20 text-coral-400 hover:bg-coral-500/30 border border-coral-500/20 hover:border-coral-500/40'
-                    : 'btn-gradient'
-                }`}
+                className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                style={{
+                  background: danger ? '#DC2626' : T.terra,
+                  color: T.white,
+                }}
               >
                 {confirmText}
               </button>

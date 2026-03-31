@@ -85,6 +85,20 @@ export default {
           800: '#991b1b',
           900: '#7f1d1d',
         },
+        /* Terracotta / safety-orange — editorial landing page accent */
+        terra: {
+          DEFAULT: '#C2644A',
+          50:  '#FDF5F2',
+          100: '#FAEAE4',
+          200: '#F2CDBF',
+          300: '#E8A98F',
+          400: '#D98467',
+          500: '#C2644A',
+          600: '#A84E36',
+          700: '#8B3D2A',
+          800: '#6D3022',
+          900: '#52241A',
+        },
         // Keep old color tokens for backward compat
         primary: {
           50: '#f5f3ff', 100: '#ede9fe', 200: '#ddd6fe', 300: '#c4b5fd',

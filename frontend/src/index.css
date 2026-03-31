@@ -242,3 +242,80 @@ body {
   background: rgba(139, 92, 246, 0.3);
   color: white;
 }
+
+/* ===== EDITORIAL LANDING PAGE (light theme, scoped) ===== */
+.landing-page {
+  --lp-bg: #FFFFFF;
+  --lp-bg-alt: #F8F7F5;
+  --lp-text: #1A1A2E;
+  --lp-text-secondary: #6B7280;
+  --lp-text-muted: #9CA3AF;
+  --lp-border: #E5E5E5;
+  --lp-border-light: #F0F0F0;
+  --lp-terra: #C2644A;
+  --lp-terra-hover: #A84E36;
+  --lp-terra-light: rgba(194, 100, 74, 0.08);
+}
+
+.landing-page ::selection {
+  background: rgba(194, 100, 74, 0.2);
+  color: #1A1A2E;
+}
+
+/* Floating label input */
+.lp-field {
+  position: relative;
+}
+
+.lp-field input,
+.lp-field textarea {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--lp-border);
+  background: transparent;
+  color: var(--lp-text);
+  font-size: 1rem;
+  padding: 1.5rem 0 0.5rem;
+  outline: none;
+  transition: border-color 0.3s ease;
+  font-family: 'Inter', sans-serif;
+}
+
+.lp-field input:focus,
+.lp-field textarea:focus {
+  border-bottom-color: var(--lp-terra);
+}
+
+.lp-field label {
+  position: absolute;
+  left: 0;
+  top: 1.5rem;
+  font-size: 1rem;
+  color: var(--lp-text-muted);
+  transition: all 0.25s ease;
+  pointer-events: none;
+}
+
+.lp-field input:focus ~ label,
+.lp-field input:not(:placeholder-shown) ~ label,
+.lp-field textarea:focus ~ label,
+.lp-field textarea:not(:placeholder-shown) ~ label {
+  top: 0;
+  font-size: 0.7rem;
+  color: var(--lp-terra);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Severity dot */
+.severity-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.severity-dot.low { background: #6B7280; }
+.severity-dot.moderate { background: #D98467; }
+.severity-dot.severe { background: #C2644A; }
+.severity-dot.critical { background: #8B3D2A; }
