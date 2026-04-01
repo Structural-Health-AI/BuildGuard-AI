@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     # CORS
     allowed_origins: str = "http://localhost:5173,http://localhost:3000"
     environment: str = "development"
+    frontend_url: str = "http://localhost:5173"  # For email links
 
     # Rate Limiting
     rate_limit_enabled: bool = True

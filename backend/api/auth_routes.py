@@ -3,6 +3,7 @@ Authentication API routes with security features
 """
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, HTTPException, Depends, status, Request
+from fastapi.security import HTTPBearer, HTTPAuthCredentials
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
@@ -16,10 +17,12 @@ from schemas.auth_schemas import (
 )
 from core.security import PasswordHasher, TokenManager
 from core.config import get_settings
+from core.email import EmailService
 from database import get_db
 from api.dependencies import get_current_user, get_current_admin
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
+security = HTTPBearer()
 limiter = Limiter(key_func=get_remote_address)
 settings = get_settings()
 
@@ -115,8 +118,13 @@ async def register(
     db.commit()
     db.refresh(user)
 
-    # TODO: Send verification email with token
-    # send_verification_email(user.email, verification_token)
+    # Send verification email
+    verification_link = f"{settings.frontend_url}/verify-email?token={verification_token}"
+    await EmailService.send_email_verification(
+        to_email=user.email,
+        verification_link=verification_link,
+        user_name=user.full_name
+    )
 
     return user
 
@@ -264,7 +272,13 @@ async def resend_verification_email(
     db.add(verification)
     db.commit()
 
-    # TODO: send_verification_email(user.email, verification_token)
+    # Send verification email
+    verification_link = f"{settings.frontend_url}/verify-email?token={verification_token}"
+    await EmailService.send_email_verification(
+        to_email=user.email,
+        verification_link=verification_link,
+        user_name=user.full_name
+    )
 
     return {"message": "Verification email sent"}
 
@@ -294,7 +308,13 @@ async def request_password_reset(
         db.add(reset_record)
         db.commit()
 
-        # TODO: send_password_reset_email(user.email, reset_token)
+        # Send password reset email
+        reset_link = f"{settings.frontend_url}/reset-password?token={reset_token}"
+        await EmailService.send_password_reset(
+            to_email=user.email,
+            reset_link=reset_link,
+            user_name=user.full_name
+        )
 
     # Always return success (don't reveal if email exists)
     return {"message": "If email is registered, password reset link has been sent"}

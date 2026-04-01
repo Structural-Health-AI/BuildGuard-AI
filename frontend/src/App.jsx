@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Routes, Route, NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { Camera, Activity, FileText, LayoutDashboard, Menu, X, Shield, Plus } from 'lucide-react'
+import { Camera, Activity, FileText, LayoutDashboard, Menu, X, Shield, Plus, LogOut } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 
 import Dashboard from './components/Dashboard'
@@ -9,6 +9,13 @@ import SensorInput from './components/SensorInput'
 import ReportForm from './components/ReportForm'
 import ReportList from './components/ReportList'
 import LandingPage from './pages/LandingPage'
+import LoginPage from './pages/LoginPage'
+import RegisterPage from './pages/RegisterPage'
+import VerifyEmailPage from './pages/VerifyEmailPage'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
+import ProtectedRoute from './components/ProtectedRoute'
+import { useAuth } from './context/AuthContext'
 
 /* ═══════════════════════════════════════════
    DESIGN TOKENS — Monochromatic + Terracotta
@@ -36,8 +43,10 @@ const navItems = [
 function AppShell() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
   const location = useLocation()
   const navigate = useNavigate()
+  const { user, logout } = useAuth()
 
   return (
     <div className="landing-page min-h-screen" style={{ background: T.offWhite, color: T.charcoal }}>
@@ -128,6 +137,23 @@ function AppShell() {
           </NavLink>
         </div>
 
+        {/* User Menu */}
+        {user && (
+          <div className="px-3 pb-4 pt-3" style={{ borderTop: `1px solid ${T.borderLight}` }}>
+            <button
+              onClick={() => {
+                logout()
+                navigate('/')
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 transition-all"
+              style={{ background: 'rgba(220, 38, 38, 0.08)' }}
+            >
+              <LogOut className="h-4 w-4 flex-shrink-0" />
+              {!sidebarCollapsed && <span>Logout</span>}
+            </button>
+          </div>
+        )}
+
         {/* Collapse toggle */}
         <div className="px-3 pb-4 pt-3" style={{ borderTop: `1px solid ${T.borderLight}` }}>
           <button
@@ -166,13 +192,24 @@ function AppShell() {
             BuildGuard<span style={{ color: T.terra }}>AI</span>
           </span>
         </div>
-        <button
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="p-2 rounded-lg transition-colors"
-          style={{ color: T.charcoal }}
-        >
-          {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
+        <div className="flex items-center gap-2">
+          {user && (
+            <button
+              onClick={() => setUserMenuOpen(!userMenuOpen)}
+              className="px-3 py-1 rounded-lg text-sm font-medium transition-colors"
+              style={{ background: 'rgba(194, 100, 74, 0.08)', color: T.terra }}
+            >
+              {user.email?.split('@')[0]}
+            </button>
+          )}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="p-2 rounded-lg transition-colors"
+            style={{ color: T.charcoal }}
+          >
+            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
       </header>
 
       {/* Mobile overlay menu */}
@@ -221,6 +258,20 @@ function AppShell() {
                   <Plus className="h-5 w-5" />
                   New Report
                 </NavLink>
+                {user && (
+                  <button
+                    onClick={() => {
+                      logout()
+                      setMobileMenuOpen(false)
+                      navigate('/')
+                    }}
+                    className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium mt-4 text-red-600"
+                    style={{ background: 'rgba(220, 38, 38, 0.08)' }}
+                  >
+                    <LogOut className="h-5 w-5" />
+                    Logout
+                  </button>
+                )}
               </nav>
             </motion.div>
           </motion.div>
@@ -270,11 +321,11 @@ function AppShell() {
               transition={{ duration: 0.3, ease: 'easeInOut' }}
             >
               <Routes location={location}>
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/image-analysis" element={<ImageUpload />} />
-                <Route path="/sensor-analysis" element={<SensorInput />} />
-                <Route path="/reports" element={<ReportList />} />
-                <Route path="/new-report" element={<ReportForm />} />
+                <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                <Route path="/image-analysis" element={<ProtectedRoute><ImageUpload /></ProtectedRoute>} />
+                <Route path="/sensor-analysis" element={<ProtectedRoute><SensorInput /></ProtectedRoute>} />
+                <Route path="/reports" element={<ProtectedRoute><ReportList /></ProtectedRoute>} />
+                <Route path="/new-report" element={<ProtectedRoute><ReportForm /></ProtectedRoute>} />
               </Routes>
             </motion.div>
           </AnimatePresence>
@@ -288,9 +339,22 @@ function AppShell() {
 function App() {
   const location = useLocation()
   const isLanding = location.pathname === '/'
+  const isAuthPage = ['/login', '/register', '/verify-email', '/forgot-password', '/reset-password'].includes(location.pathname)
 
   if (isLanding) {
     return <LandingPage />
+  }
+
+  if (isAuthPage) {
+    return (
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+      </Routes>
+    )
   }
 
   return <AppShell />
