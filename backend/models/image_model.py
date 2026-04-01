@@ -29,7 +29,8 @@ _model = None
 
 # Image settings
 IMG_SIZE = (224, 224)
-DAMAGE_CLASSES = ["no_damage", "crack", "spalling", "corrosion", "structural_deformation"]
+# Note: Trained model uses 2 classes. Map predictions accordingly.
+DAMAGE_CLASSES = ["no_damage", "crack"]  # 0 = no damage, 1 = damage detected
 
 
 def get_damage_recommendations(damage_type: Optional[str], confidence: float) -> List[str]:
@@ -43,28 +44,10 @@ def get_damage_recommendations(damage_type: Optional[str], confidence: float) ->
 
     recommendations = {
         "crack": [
-            "Cracks detected in the structure",
-            "Measure and document crack width and length",
-            "Monitor for crack progression over time",
-            "Consult structural engineer if cracks exceed 3mm width"
-        ],
-        "spalling": [
-            "Concrete spalling detected",
-            "Check for exposed reinforcement",
-            "Assess depth and extent of spalling",
-            "Consider repair or resurfacing if damage is significant"
-        ],
-        "corrosion": [
-            "Corrosion/rust detected on structural elements",
-            "Check for source of moisture/water intrusion",
-            "Assess extent of material loss",
-            "Consider protective coatings or replacement"
-        ],
-        "structural_deformation": [
-            "CRITICAL: Structural deformation detected",
-            "Evacuate area immediately if significant",
-            "Contact structural engineer urgently",
-            "Do not load the structure until assessed"
+            "Cracks or damage detected in the structure",
+            "Measure and document crack size and location",
+            "Monitor for damage progression over time",
+            "Consult structural engineer for assessment if needed"
         ]
     }
 
