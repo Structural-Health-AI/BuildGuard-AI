@@ -5,10 +5,12 @@ Endpoints for creating and managing structural health reports
 import sqlite3
 import json
 from datetime import datetime
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 
 from schemas.schemas import ReportCreate, ReportResponse, ReportListResponse, DamageLevel
+from models.user_model import User
+from api.dependencies import get_current_user
 
 router = APIRouter()
 DATABASE_PATH = "buildguard.db"
@@ -60,7 +62,7 @@ def determine_overall_status(sensor_prediction_id: int = None, image_analysis_id
 
 
 @router.post("/", response_model=ReportResponse)
-async def create_report(report: ReportCreate):
+async def create_report(report: ReportCreate, current_user: User = Depends(get_current_user)):
     """
     Create a new structural health report
 
@@ -118,7 +120,7 @@ async def create_report(report: ReportCreate):
 
 
 @router.get("/", response_model=ReportListResponse)
-async def list_reports(skip: int = 0, limit: int = 50):
+async def list_reports(skip: int = 0, limit: int = 50, current_user: User = Depends(get_current_user)):
     """Get all reports with pagination"""
     conn = sqlite3.connect(DATABASE_PATH)
     conn.row_factory = sqlite3.Row
@@ -157,7 +159,7 @@ async def list_reports(skip: int = 0, limit: int = 50):
 
 
 @router.get("/{report_id}", response_model=dict)
-async def get_report(report_id: int):
+async def get_report(report_id: int, current_user: User = Depends(get_current_user)):
     """Get a specific report with all linked analyses"""
     conn = sqlite3.connect(DATABASE_PATH)
     conn.row_factory = sqlite3.Row
@@ -203,7 +205,7 @@ async def get_report(report_id: int):
 
 
 @router.put("/{report_id}", response_model=ReportResponse)
-async def update_report(report_id: int, report: ReportCreate):
+async def update_report(report_id: int, report: ReportCreate, current_user: User = Depends(get_current_user)):
     """Update an existing report"""
     conn = sqlite3.connect(DATABASE_PATH)
     cursor = conn.cursor()
@@ -265,7 +267,7 @@ async def update_report(report_id: int, report: ReportCreate):
 
 
 @router.delete("/{report_id}")
-async def delete_report(report_id: int):
+async def delete_report(report_id: int, current_user: User = Depends(get_current_user)):
     """Delete a report"""
     conn = sqlite3.connect(DATABASE_PATH)
     cursor = conn.cursor()

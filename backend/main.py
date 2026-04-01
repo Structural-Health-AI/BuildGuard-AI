@@ -6,20 +6,28 @@ import os
 import sqlite3
 from contextlib import asynccontextmanager
 from datetime import datetime
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.staticfiles import StaticFiles
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from api.sensor_routes import router as sensor_router
 from api.image_routes import router as image_router
 from api.report_routes import router as report_router
+from api.auth_routes import router as auth_router, limiter
+from api.dependencies import get_current_user
+from core.config import get_settings
+from database import init_database, SessionLocal
 
 
 # Database setup
 DATABASE_PATH = "buildguard.db"
+settings = get_settings()
 
 
-def init_database():
+def init_legacy_database():
     """Initialize SQLite database with required tables"""
     conn = sqlite3.connect(DATABASE_PATH)
     cursor = conn.cursor()
@@ -80,8 +88,9 @@ def init_database():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
-    # Startup: Initialize database
-    init_database()
+    # Startup: Initialize databases
+    init_database()  # Initialize SQLAlchemy models
+    init_legacy_database()  # Initialize legacy SQLite tables
 
     # Create uploads directory if not exists
     os.makedirs("uploads", exist_ok=True)
@@ -101,19 +110,48 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS middleware for frontend
+# ============= SECURITY MIDDLEWARE =============
+
+# Trusted Host Middleware - only allow requests from trusted hosts
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=settings.cors_origins if settings.environment == "production" else ["*"]
+)
+
+# CORS middleware - restrictive in production
+cors_origins = settings.cors_origins
+if settings.environment == "production":
+    cors_origins = [origin.strip() for origin in settings.allowed_origins.split(",")]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "*"],
+    allow_origins=cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],  # Restrict to necessary methods
+    allow_headers=["Content-Type", "Authorization"],  # Only required headers
 )
+
+# Add security headers middleware
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Content-Security-Policy"] = "default-src 'self'"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
+
+# Add rate limiting error handler
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Mount static files for uploaded images
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # Include routers
+app.include_router(auth_router, tags=["Authentication"])
 app.include_router(sensor_router, prefix="/api/sensor", tags=["Sensor Analysis"])
 app.include_router(image_router, prefix="/api/image", tags=["Image Analysis"])
 app.include_router(report_router, prefix="/api/reports", tags=["Reports"])
@@ -145,7 +183,7 @@ async def health_check():
 
 
 @app.get("/api/dashboard/stats")
-async def get_dashboard_stats():
+async def get_dashboard_stats(current_user = Depends(get_current_user)):
     """Get dashboard statistics"""
     conn = sqlite3.connect(DATABASE_PATH)
     cursor = conn.cursor()

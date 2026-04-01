@@ -5,18 +5,22 @@ Endpoints for sensor-based structural health prediction
 import sqlite3
 import json
 from datetime import datetime
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 
 from schemas.schemas import SensorDataInput, SensorPredictionResponse, DamageLevel
 from models.sensor_model import predict_sensor_health
+from models.user_model import User
 
 router = APIRouter()
 DATABASE_PATH = "buildguard.db"
 
 
+from api.dependencies import get_current_user
+
+
 @router.post("/predict", response_model=SensorPredictionResponse)
-async def predict_from_sensors(data: SensorDataInput):
+async def predict_from_sensors(data: SensorDataInput, current_user: User = Depends(get_current_user)):
     """
     Analyze sensor data and predict structural health
 
@@ -67,7 +71,7 @@ async def predict_from_sensors(data: SensorDataInput):
 
 
 @router.get("/history", response_model=List[dict])
-async def get_sensor_history(limit: int = 50):
+async def get_sensor_history(limit: int = 50, current_user: User = Depends(get_current_user)):
     """Get history of sensor predictions"""
     conn = sqlite3.connect(DATABASE_PATH)
     conn.row_factory = sqlite3.Row
@@ -95,7 +99,7 @@ async def get_sensor_history(limit: int = 50):
 
 
 @router.get("/{prediction_id}")
-async def get_sensor_prediction(prediction_id: int):
+async def get_sensor_prediction(prediction_id: int, current_user: User = Depends(get_current_user)):
     """Get a specific sensor prediction by ID"""
     conn = sqlite3.connect(DATABASE_PATH)
     conn.row_factory = sqlite3.Row
@@ -118,7 +122,7 @@ async def get_sensor_prediction(prediction_id: int):
 
 
 @router.delete("/{prediction_id}")
-async def delete_sensor_prediction(prediction_id: int):
+async def delete_sensor_prediction(prediction_id: int, current_user: User = Depends(get_current_user)):
     """Delete a sensor prediction"""
     conn = sqlite3.connect(DATABASE_PATH)
     cursor = conn.cursor()
