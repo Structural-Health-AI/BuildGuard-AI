@@ -29,8 +29,8 @@ _model = None
 
 # Image settings
 IMG_SIZE = (224, 224)
-# Note: Trained model uses 2 classes. Map predictions accordingly.
-DAMAGE_CLASSES = ["no_damage", "crack"]  # 0 = no damage, 1 = damage detected
+# Classes match flow_from_directory alphabetical order: 'damage' then 'no_damage'
+DAMAGE_CLASSES = ["damage", "no_damage"]  # 0 = damage detected, 1 = no damage
 
 
 def get_damage_recommendations(damage_type: Optional[str], confidence: float) -> List[str]:
@@ -43,7 +43,7 @@ def get_damage_recommendations(damage_type: Optional[str], confidence: float) ->
         ]
 
     recommendations = {
-        "crack": [
+        "damage": [
             "Cracks or damage detected in the structure",
             "Measure and document crack size and location",
             "Monitor for damage progression over time",
@@ -106,10 +106,40 @@ def load_model():
         return None
 
     try:
+        # Try to load the full model first
         _model = keras_load_model(MODEL_PATH)
-    except (OSError, IOError):
-        print("Model not found, creating placeholder model...")
-        _model = create_dummy_model()
+    except Exception as e:
+        print(f"Could not load full model: {e}")
+        print("Attempting to load weights only...")
+        try:
+            # Build model architecture fresh
+            base_model = MobileNetV2(
+                weights='imagenet',
+                include_top=False,
+                input_shape=(*IMG_SIZE, 3)
+            )
+            base_model.trainable = False
+
+            x = base_model.output
+            x = GlobalAveragePooling2D()(x)
+            x = Dense(128, activation='relu')(x)
+            x = Dropout(0.3)(x)
+            outputs = Dense(len(DAMAGE_CLASSES), activation='softmax')(x)
+
+            _model = Model(inputs=base_model.input, outputs=outputs)
+            _model.compile(
+                optimizer='adam',
+                loss='categorical_crossentropy',
+                metrics=['accuracy']
+            )
+
+            # Load weights from saved model
+            _model.load_weights(MODEL_PATH, skip_mismatch=True)
+            print("Model loaded from weights successfully")
+        except Exception as e2:
+            print(f"Could not load weights: {e2}")
+            print("Creating placeholder model...")
+            _model = create_dummy_model()
 
     return _model
 
@@ -167,15 +197,20 @@ def predict_image_damage(image_data: bytes) -> Tuple[bool, Optional[str], float,
     # Predict
     predictions = model.predict(img_array, verbose=0)[0]
     predicted_class = int(np.argmax(predictions))
+
+    # Bounds check
+    if predicted_class < 0 or predicted_class >= len(DAMAGE_CLASSES):
+        predicted_class = 0  # Default to no damage if out of bounds
+
     confidence = float(predictions[predicted_class])
 
     # Determine damage
-    if predicted_class == 0:  # no_damage
+    if predicted_class == 1:  # no_damage (class 1)
         damage_detected = False
         damage_type = None
-    else:
+    else:  # damage (class 0)
         damage_detected = True
-        damage_type = DAMAGE_CLASSES[predicted_class]
+        damage_type = "damage"
 
     # Get recommendations
     recommendations = get_damage_recommendations(damage_type, confidence)

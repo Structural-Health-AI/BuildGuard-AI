@@ -5,22 +5,18 @@ Endpoints for sensor-based structural health prediction
 import sqlite3
 import json
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException
 from typing import List
 
 from schemas.schemas import SensorDataInput, SensorPredictionResponse, DamageLevel
 from models.sensor_model import predict_sensor_health
-from models.user_model import User
 
 router = APIRouter()
 DATABASE_PATH = "buildguard.db"
 
 
-from api.dependencies import get_current_user
-
-
 @router.post("/predict", response_model=SensorPredictionResponse)
-async def predict_from_sensors(data: SensorDataInput, current_user: User = Depends(get_current_user)):
+async def predict_from_sensors(data: SensorDataInput):
     """
     Analyze sensor data and predict structural health
 
@@ -71,7 +67,7 @@ async def predict_from_sensors(data: SensorDataInput, current_user: User = Depen
 
 
 @router.get("/history", response_model=List[dict])
-async def get_sensor_history(limit: int = 50, current_user: User = Depends(get_current_user)):
+async def get_sensor_history(limit: int = 50):
     """Get history of sensor predictions"""
     conn = sqlite3.connect(DATABASE_PATH)
     conn.row_factory = sqlite3.Row
@@ -99,7 +95,7 @@ async def get_sensor_history(limit: int = 50, current_user: User = Depends(get_c
 
 
 @router.get("/{prediction_id}")
-async def get_sensor_prediction(prediction_id: int, current_user: User = Depends(get_current_user)):
+async def get_sensor_prediction(prediction_id: int):
     """Get a specific sensor prediction by ID"""
     conn = sqlite3.connect(DATABASE_PATH)
     conn.row_factory = sqlite3.Row
@@ -122,7 +118,7 @@ async def get_sensor_prediction(prediction_id: int, current_user: User = Depends
 
 
 @router.delete("/{prediction_id}")
-async def delete_sensor_prediction(prediction_id: int, current_user: User = Depends(get_current_user)):
+async def delete_sensor_prediction(prediction_id: int):
     """Delete a sensor prediction"""
     conn = sqlite3.connect(DATABASE_PATH)
     cursor = conn.cursor()

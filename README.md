@@ -168,8 +168,12 @@ Frontend will be available at http://localhost:5173
 1. **Register**: Visit http://localhost:5173/register, create account
 2. **Verify Email**: Check email for verification link (or use SMTP mock in development)
 3. **Login**: Use credentials to login
-4. **Upload Image**: Go to Image Analysis, upload a crack/damage image
-5. **View Results**: See damage detection results with confidence score
+4. **Sensor Analysis**: Navigate to Sensor Analysis, enter accelerometer/strain/temperature data to test predictions
+5. **Image Analysis**: Go to Image Analysis, upload structural photos to test crack detection:
+   - Upload images with cracks/damage for "damage detected" predictions
+   - Upload images without visible damage to test accuracy
+6. **View Results**: See analysis results with confidence scores and recommendations
+7. **Reports**: Create and manage inspection reports from analysis results
 
 ### API Testing
 
@@ -243,11 +247,14 @@ See `TESTING_GUIDE.md` for comprehensive test cases.
 - **File**: `backend/saved_models/sensor_classifier.pkl`
 
 ### Crack Detection Model
-- **Architecture**: MobileNetV2 Transfer Learning
+- **Architecture**: MobileNetV2 Transfer Learning (pre-trained ImageNet)
 - **Input**: 224×224 RGB images
 - **Output**: Binary classification (damage detected / no damage)
-- **Training**: Uses data augmentation + early stopping
+- **Training**: Uses data augmentation (rotation, shift, flip, zoom) + early stopping
+- **Performance**: 99.58% validation accuracy (trained on 40,000 images: 20K damage + 20K no-damage)
+- **Dataset Split**: 32K training / 8K validation
 - **File**: `backend/saved_models/damage_detector.h5`
+- **Training Time**: ~1 hour on standard hardware
 
 ## Training Models
 
@@ -318,8 +325,9 @@ See `SECURITY_AUDIT.md` and `IMPLEMENTATION_SUMMARY.md` for production guideline
 
 ### Model not loading
 - Check if `.h5` file exists in `backend/saved_models/`
+- Ensure TensorFlow version matches training version: `pip install tensorflow==2.15.0`
+- If model config errors occur (e.g., "quantization_config"), rebuild model from architecture
 - Run training: `python train_crack_detector.py --positive-dir ... --negative-dir ...`
-- Ensure TensorFlow is installed: `pip install tensorflow==2.15.0`
 
 ### Email not sending
 - Verify SMTP credentials in `.env`

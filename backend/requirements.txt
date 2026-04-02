@@ -8,7 +8,7 @@ pillow>=9.0.0
 pydantic==2.10.3
 pydantic-settings==2.1.0
 joblib>=1.0.0
-sqlalchemy==2.0.23
+sqlalchemy==2.0.48
 python-dotenv==1.0.0
 bcrypt==4.1.1
 pyjwt==2.12.1

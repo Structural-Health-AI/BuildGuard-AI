@@ -3,7 +3,7 @@ Authentication API routes with security features
 """
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, HTTPException, Depends, status, Request
-from fastapi.security import HTTPBearer, HTTPAuthCredentials
+from fastapi.security import HTTPBearer
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
@@ -371,7 +371,7 @@ async def reset_password(
 
 @router.post("/refresh-token", response_model=TokenResponse)
 async def refresh_token(
-    credentials: HTTPAuthCredentials = Depends(security),
+    credentials = Depends(security),
     db: Session = Depends(get_db)
 ) -> TokenResponse:
     """Generate new access token using refresh token"""
