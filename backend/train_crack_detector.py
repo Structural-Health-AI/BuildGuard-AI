@@ -28,6 +28,11 @@ LEARNING_RATE = 0.001
 def prepare_directories(positive_dir, negative_dir, temp_dir):
     """Prepare directory structure for flow_from_directory"""
 
+    # Convert to absolute paths
+    positive_dir = os.path.abspath(positive_dir)
+    negative_dir = os.path.abspath(negative_dir)
+    temp_dir = os.path.abspath(temp_dir)
+
     # Create temp directory structure
     os.makedirs(os.path.join(temp_dir, 'train', 'damage'), exist_ok=True)
     os.makedirs(os.path.join(temp_dir, 'train', 'no_damage'), exist_ok=True)
@@ -52,16 +57,41 @@ def prepare_directories(positive_dir, negative_dir, temp_dir):
     print(f"Train: {len(pos_train)} damage + {len(neg_train)} no_damage")
     print(f"Val: {len(pos_val)} damage + {len(neg_val)} no_damage")
 
-    # Copy files to temp directories
+    # Copy files to temp directories with validation
     print("Organizing files for training...")
+
+    def safe_copy(img_path, dest_dir):
+        """Copy file with error handling"""
+        try:
+            if not os.path.exists(img_path):
+                print(f"  ⚠️  Skipping missing file: {img_path}")
+                return False
+            shutil.copy(img_path, os.path.join(dest_dir, os.path.basename(img_path)))
+            return True
+        except Exception as e:
+            print(f"  ⚠️  Failed to copy {img_path}: {e}")
+            return False
+
+    copied = 0
     for img_path in pos_train:
-        shutil.copy(img_path, os.path.join(temp_dir, 'train', 'damage', img_path.name))
+        if safe_copy(img_path, os.path.join(temp_dir, 'train', 'damage')):
+            copied += 1
     for img_path in pos_val:
-        shutil.copy(img_path, os.path.join(temp_dir, 'val', 'damage', img_path.name))
+        if safe_copy(img_path, os.path.join(temp_dir, 'val', 'damage')):
+            copied += 1
     for img_path in neg_train:
-        shutil.copy(img_path, os.path.join(temp_dir, 'train', 'no_damage', img_path.name))
+        if safe_copy(img_path, os.path.join(temp_dir, 'train', 'no_damage')):
+            copied += 1
     for img_path in neg_val:
-        shutil.copy(img_path, os.path.join(temp_dir, 'val', 'no_damage', img_path.name))
+        if safe_copy(img_path, os.path.join(temp_dir, 'val', 'no_damage')):
+            copied += 1
+
+    total_files = len(pos_train) + len(pos_val) + len(neg_train) + len(neg_val)
+    skipped = total_files - copied
+    if skipped > 0:
+        print(f"✓ Copied {copied}/{total_files} files (skipped {skipped} corrupted/inaccessible)")
+    else:
+        print(f"✓ Copied {copied} files successfully")
 
     return temp_dir
 

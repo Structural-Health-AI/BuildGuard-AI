@@ -7,13 +7,11 @@ import sqlite3
 import json
 import uuid
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
+from fastapi import APIRouter, HTTPException, UploadFile, File
 from typing import List
 
 from schemas.schemas import ImageAnalysisResponse
 from models.image_model import predict_image_damage
-from models.user_model import User
-from api.dependencies import get_current_user
 
 router = APIRouter()
 DATABASE_PATH = "buildguard.db"
@@ -21,7 +19,7 @@ UPLOAD_DIR = "uploads"
 
 
 @router.post("/analyze", response_model=ImageAnalysisResponse)
-async def analyze_image(file: UploadFile = File(...), current_user: User = Depends(get_current_user)):
+async def analyze_image(file: UploadFile = File(...)):
     """
     Analyze an uploaded image for structural damage
 
@@ -97,7 +95,7 @@ async def analyze_image(file: UploadFile = File(...), current_user: User = Depen
 
 
 @router.get("/history", response_model=List[dict])
-async def get_image_history(limit: int = 50, current_user: User = Depends(get_current_user)):
+async def get_image_history(limit: int = 50):
     """Get history of image analyses"""
     conn = sqlite3.connect(DATABASE_PATH)
     conn.row_factory = sqlite3.Row
@@ -125,7 +123,7 @@ async def get_image_history(limit: int = 50, current_user: User = Depends(get_cu
 
 
 @router.get("/{analysis_id}")
-async def get_image_analysis(analysis_id: int, current_user: User = Depends(get_current_user)):
+async def get_image_analysis(analysis_id: int):
     """Get a specific image analysis by ID"""
     conn = sqlite3.connect(DATABASE_PATH)
     conn.row_factory = sqlite3.Row
@@ -147,7 +145,7 @@ async def get_image_analysis(analysis_id: int, current_user: User = Depends(get_
 
 
 @router.delete("/{analysis_id}")
-async def delete_image_analysis(analysis_id: int, current_user: User = Depends(get_current_user)):
+async def delete_image_analysis(analysis_id: int):
     """Delete an image analysis and its associated file"""
     conn = sqlite3.connect(DATABASE_PATH)
     conn.row_factory = sqlite3.Row

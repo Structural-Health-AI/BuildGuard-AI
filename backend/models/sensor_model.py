@@ -1,6 +1,7 @@
 """
 Sensor Data Classification Model
 Predicts structural health from accelerometer, strain, and temperature data
+Uses RandomForest trained on real building health monitoring dataset
 """
 import os
 import numpy as np
@@ -44,28 +45,31 @@ def get_damage_recommendations(damage_level: str) -> List[str]:
     return recommendations.get(damage_level, ["Unable to provide recommendations"])
 
 
-def create_dummy_model():
-    """Train model on actual dataset"""
+def create_model_from_real_data():
+    """Train model on real building health monitoring dataset"""
     import pandas as pd
 
     try:
-        # Load actual training data - go up 2 levels from models/ to project root
+        # Load real training data
         project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
         csv_path = os.path.join(project_root, "data", "sensor", "building_health_monitoring_dataset.csv")
-        print(f"[DEBUG] Attempting to load CSV from: {csv_path}")
-        print(f"[DEBUG] CSV exists: {os.path.exists(csv_path)}")
+
+        print(f"[DEBUG] Loading real dataset from: {csv_path}")
+        print(f"[DEBUG] Dataset exists: {os.path.exists(csv_path)}")
+
         df = pd.read_csv(csv_path)
-        print(f"[DEBUG] Successfully loaded {len(df)} samples from CSV")
+        print(f"✓ Loaded {len(df)} real samples from dataset")
 
         # Extract features and labels
-        X = df.iloc[:, 1:6].values  # Accel_X, Y, Z, Strain, Temp
+        # Columns: Accel_X, Accel_Y, Accel_Z, Strain, Temp, Condition Label
+        X = df[['Accel_X (m/s^2)', 'Accel_Y (m/s^2)', 'Accel_Z (m/s^2)', 'Strain (με)', 'Temp (°C)']].values
         y = df['Condition Label'].values
 
         # Train scaler and model
         scaler = StandardScaler()
         X_scaled = scaler.fit_transform(X)
 
-        model = RandomForestClassifier(n_estimators=150, random_state=42, max_depth=10)
+        model = RandomForestClassifier(n_estimators=200, random_state=42, max_depth=15, min_samples_split=5)
         model.fit(X_scaled, y)
 
         # Save model and scaler
@@ -73,65 +77,12 @@ def create_dummy_model():
         joblib.dump(model, MODEL_PATH)
         joblib.dump(scaler, SCALER_PATH)
 
-        print(f"✓ Model trained on {len(df)} real samples")
+        print(f"✓ Model trained on {len(df)} real samples and saved")
         return model, scaler
 
     except Exception as e:
-        print(f"Failed to load dataset: {e}. Using fallback synthetic data...")
-        return create_fallback_model()
-
-
-def create_fallback_model():
-    """Fallback synthetic model if dataset not available"""
-    np.random.seed(42)
-    n_samples = 1000
-
-    # Based on actual data ranges
-    # Healthy: low strain around 100
-    healthy_data = np.column_stack([
-        np.random.normal(0.013, 0.4, n_samples),  # accel_x: mean 0.013, normalized
-        np.random.normal(0.019, 0.4, n_samples),  # accel_y: mean 0.019
-        np.random.normal(9.77, 0.1, n_samples),   # accel_z
-        np.random.normal(100, 20, n_samples),     # strain: mean 100
-        np.random.normal(24.5, 3, n_samples),     # temperature
-    ])
-
-    # Minor damage: moderate acceleration, strain around 127
-    minor_data = np.column_stack([
-        np.random.normal(0.24, 0.4, n_samples),   # accel_x: mean 0.24
-        np.random.normal(0.041, 0.4, n_samples),  # accel_y: mean 0.041
-        np.random.normal(9.75, 0.12, n_samples),
-        np.random.normal(127, 25, n_samples),     # strain: mean 127
-        np.random.normal(24.5, 3, n_samples),
-    ])
-
-    # Severe damage: higher acceleration, strain around 160
-    severe_data = np.column_stack([
-        np.random.normal(0.421, 0.45, n_samples), # accel_x: mean 0.421
-        np.random.normal(-0.016, 0.35, n_samples),# accel_y: mean -0.016
-        np.random.normal(9.73, 0.15, n_samples),
-        np.random.normal(160, 30, n_samples),     # strain: mean 160
-        np.random.normal(24.5, 3, n_samples),
-    ])
-
-    X = np.vstack([healthy_data, minor_data, severe_data])
-    y = np.array([0] * n_samples + [1] * n_samples + [2] * n_samples)
-
-    indices = np.random.permutation(len(X))
-    X = X[indices]
-    y = y[indices]
-
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-
-    model = RandomForestClassifier(n_estimators=150, random_state=42, max_depth=10)
-    model.fit(X_scaled, y)
-
-    os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
-    joblib.dump(model, MODEL_PATH)
-    joblib.dump(scaler, SCALER_PATH)
-
-    return model, scaler
+        print(f"✗ Failed to load real dataset: {e}")
+        raise
 
 
 def load_model():
@@ -144,9 +95,10 @@ def load_model():
     try:
         _model = joblib.load(MODEL_PATH)
         _scaler = joblib.load(SCALER_PATH)
+        print("✓ Loaded existing model from disk")
     except FileNotFoundError:
-        print("Model not found, creating dummy model for testing...")
-        _model, _scaler = create_dummy_model()
+        print("Model not found, training new model on real data...")
+        _model, _scaler = create_model_from_real_data()
 
     return _model, _scaler
 
@@ -159,7 +111,7 @@ def predict_sensor_health(
     temperature: float
 ) -> Tuple[str, float, List[str]]:
     """
-    Predict structural health from sensor data
+    Predict structural health from sensor data using RandomForest trained on real data
 
     Args:
         accel_x: X-axis acceleration (m/s²)

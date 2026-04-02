@@ -55,9 +55,9 @@ function SensorInput() {
 
   const loadSampleData = (type) => {
     const samples = {
-      healthy: { accel_x: '0.02', accel_y: '0.01', accel_z: '-9.81', strain: '120', temperature: '24' },
-      minor: { accel_x: '0.35', accel_y: '0.28', accel_z: '-9.65', strain: '350', temperature: '28' },
-      severe: { accel_x: '0.95', accel_y: '0.88', accel_z: '-9.2', strain: '650', temperature: '38' }
+      healthy: { accel_x: '0.15', accel_y: '0.42', accel_z: '-9.74', strain: '85', temperature: '24' },
+      minor: { accel_x: '0.48', accel_y: '0.19', accel_z: '-9.73', strain: '105', temperature: '24' },
+      severe: { accel_x: '0.78', accel_y: '0.06', accel_z: '-9.73', strain: '170', temperature: '24' }
     }
     if (samples[type]) setFormData(prev => ({ ...prev, ...samples[type] }))
   }

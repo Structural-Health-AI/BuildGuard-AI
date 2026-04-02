@@ -1,7 +1,7 @@
 """
 Shared authentication dependencies for all routes
 """
-from fastapi.security import HTTPBearer, HTTPAuthCredentials
+from fastapi.security import HTTPBearer
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -13,7 +13,7 @@ security = HTTPBearer()
 
 
 def get_current_user(
-    credentials: HTTPAuthCredentials = Depends(security),
+    credentials = Depends(security),
     db: Session = Depends(get_db)
 ) -> User:
     """
