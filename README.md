@@ -247,9 +247,12 @@ See `MODEL_TRAINING_GUIDE.md` for detailed training instructions.
 
 ## Datasets
 
-Download and place datasets in the appropriate folders:
+### Sensor Data
 - [Kaggle: Building Structural Health Sensor Dataset](https://www.kaggle.com/datasets/ziya07/building-structural-health-sensor-dataset)
 - [Mendeley: Bridge Vibration Monitoring](https://data.mendeley.com/datasets/d3by55pjh7/2)
+
+### Image Data (Crack Detection)
+- [Kaggle: Concrete Crack Images for Classification](https://www.kaggle.com/datasets/arnavr10880/concrete-crack-images-for-classification) - 40K labeled images of concrete with/without cracks
 
 **For crack detection training**, organize images in two folders:
 - `Positive/` - Images with cracks/damage
