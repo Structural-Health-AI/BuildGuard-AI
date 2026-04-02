@@ -12,7 +12,6 @@ AI-powered Structural Health Monitoring and Damage Detection System with secure 
 
 ### Security & Authentication
 - **User Authentication**: Secure JWT-based login with refresh tokens
-- **Email Verification**: Verify email addresses on signup
 - **Password Reset**: Secure password reset with time-limited tokens
 - **Rate Limiting**: Protect against brute force attacks (5 failed attempts per 15 min)
 - **Protected Endpoints**: All API endpoints require authentication
@@ -37,7 +36,6 @@ BuildGuard-AI/
 │   ├── train_crack_detector.py # Model training script
 │   ├── core/
 │   │   ├── config.py           # Configuration settings
-│   │   ├── email.py            # Email service (SMTP)
 │   │   └── security.py         # JWT, hashing utilities
 │   ├── models/
 │   │   ├── image_model.py      # Image damage detector
@@ -98,7 +96,7 @@ pip install -r requirements.txt
 
 # Configure environment
 cp .env.example .env
-# Edit .env and add your configuration:
+# Edit .env and add:
 # - SECRET_KEY (auto-generated in example)
 # - FRONTEND_URL
 
@@ -131,14 +129,13 @@ Frontend will be available at http://localhost:5173
 ### Manual Testing Workflow
 
 1. **Register**: Visit http://localhost:5173/register, create account
-2. **Verify Email**: Check email for verification link (or use SMTP mock in development)
-3. **Login**: Use credentials to login
-4. **Sensor Analysis**: Navigate to Sensor Analysis, enter accelerometer/strain/temperature data to test predictions
-5. **Image Analysis**: Go to Image Analysis, upload structural photos to test crack detection:
+2. **Login**: Use credentials to login
+3. **Sensor Analysis**: Navigate to Sensor Analysis, enter accelerometer/strain/temperature data to test predictions
+4. **Image Analysis**: Go to Image Analysis, upload structural photos to test crack detection:
    - Upload images with cracks/damage for "damage detected" predictions
    - Upload images without visible damage to test accuracy
-6. **View Results**: See analysis results with confidence scores and recommendations
-7. **Reports**: Create and manage inspection reports from analysis results
+5. **View Results**: See analysis results with confidence scores and recommendations
+6. **Reports**: Create and manage inspection reports from analysis results
 
 ### API Testing
 
@@ -175,10 +172,6 @@ See `TESTING_GUIDE.md` for comprehensive test cases.
 ### Authentication (No token required)
 - `POST /api/auth/register` - Create new user account
 - `POST /api/auth/login` - Login with email and password
-- `POST /api/auth/verify-email` - Verify email with token
-- `POST /api/auth/resend-verification` - Resend verification email
-- `POST /api/auth/request-password-reset` - Request password reset
-- `POST /api/auth/reset-password` - Reset password with token
 - `POST /api/auth/refresh-token` - Refresh access token
 
 ### Sensor Analysis (Protected)
@@ -260,31 +253,12 @@ See `MODEL_TRAINING_GUIDE.md` for detailed training instructions.
 
 Then run: `python train_crack_detector.py --positive-dir Positive --negative-dir Negative`
 
-## Production Deployment
-
-### Security Checklist
-- [ ] Set secure `SECRET_KEY` in `.env`
-- [ ] Use HTTPS only in production
-- [ ] Set `FRONTEND_URL` to production domain
-- [ ] Change database from SQLite to PostgreSQL
-- [ ] Set up rate limiting in reverse proxy (nginx)
-- [ ] Enable CORS only for trusted domains
-- [ ] Use environment-specific `.env` files
-
-### Recommended Deployment
-- **Backend**: Docker + AWS ECS, Azure Container Instances, or Heroku
-- **Frontend**: AWS S3 + CloudFront, Vercel, or Netlify
-- **Database**: PostgreSQL (AWS RDS, Azure Database, or cloud hosted)
-- **Storage**: AWS S3 or Azure Blob Storage (for images)
-
-See `SECURITY_AUDIT.md` and `IMPLEMENTATION_SUMMARY.md` for production guidelines.
-
 ## Documentation
 
-- **SECURITY_AUDIT.md** - Detailed security audit and best practices
+- **SECURITY_AUDIT.md** - Detailed security review
 - **TESTING_GUIDE.md** - Manual and automated test cases
-- **IMPLEMENTATION_SUMMARY.md** - Implementation overview and checklist
 - **MODEL_TRAINING_GUIDE.md** - Model training documentation
+- **IMPLEMENTATION_SUMMARY.md** - Implementation overview
 
 ## Troubleshooting
 
