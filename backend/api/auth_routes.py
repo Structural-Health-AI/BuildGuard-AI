@@ -90,41 +90,17 @@ async def register(
     # Hash password
     hashed_password = PasswordHasher.hash_password(user_data.password)
 
-    # Create user
+    # Create user with email auto-verified (no email verification required)
     user = User(
         email=user_data.email.lower(),
         full_name=user_data.full_name,
         hashed_password=hashed_password,
-        is_email_verified=False
+        is_email_verified=True
     )
 
     db.add(user)
-    db.flush()  # Get user ID without committing
-
-    # Create email verification token
-    verification_token = TokenManager.create_email_verification_token(user.id, user.email)
-    token_hash = hash_token(verification_token)
-
-    verification = EmailVerificationToken(
-        user_id=user.id,
-        email=user.email,
-        token_hash=token_hash,
-        expires_at=datetime.now(timezone.utc) + timedelta(
-            hours=settings.email_verification_token_expire_hours
-        )
-    )
-
-    db.add(verification)
     db.commit()
     db.refresh(user)
-
-    # Send verification email
-    verification_link = f"{settings.frontend_url}/verify-email?token={verification_token}"
-    await EmailService.send_email_verification(
-        to_email=user.email,
-        verification_link=verification_link,
-        user_name=user.full_name
-    )
 
     return user
 
@@ -163,12 +139,6 @@ async def login(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is inactive"
-        )
-
-    if not user.is_email_verified:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Please verify your email before logging in"
         )
 
     # Record successful login
