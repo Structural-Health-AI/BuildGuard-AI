@@ -70,7 +70,6 @@ BuildGuard-AI/
 │
 ├── notebooks/                  # Jupyter notebooks for exploration
 ├── MODEL_TRAINING_GUIDE.md     # Model training documentation
-├── EMAIL_SETUP_GUIDE.md        # Email provider setup
 ├── SECURITY_AUDIT.md           # Security audit report
 ├── TESTING_GUIDE.md            # Comprehensive test cases
 ├── IMPLEMENTATION_SUMMARY.md   # Implementation overview
@@ -101,7 +100,6 @@ pip install -r requirements.txt
 cp .env.example .env
 # Edit .env and add your configuration:
 # - SECRET_KEY (auto-generated in example)
-# - SMTP credentials (see Email Setup below)
 # - FRONTEND_URL
 
 # Run the server
@@ -110,39 +108,6 @@ python main.py
 
 Backend will be available at http://localhost:8001
 API docs at http://localhost:8001/docs
-
-### Email Setup
-
-Email verification and password reset require SMTP configuration. Choose one:
-
-**Gmail**:
-```
-SMTP_SERVER=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your-email@gmail.com
-SMTP_PASSWORD=your-app-password
-SENDER_EMAIL=your-email@gmail.com
-```
-
-**SendGrid**:
-```
-SMTP_SERVER=smtp.sendgrid.net
-SMTP_PORT=587
-SMTP_USER=apikey
-SMTP_PASSWORD=SG.xxxxx
-SENDER_EMAIL=noreply@yourdomain.com
-```
-
-**AWS SES**:
-```
-SMTP_SERVER=email-smtp.region.amazonaws.com
-SMTP_PORT=587
-SMTP_USER=your-smtp-username
-SMTP_PASSWORD=your-smtp-password
-SENDER_EMAIL=noreply@yourdomain.com
-```
-
-See `EMAIL_SETUP_GUIDE.md` for detailed setup instructions.
 
 ### Frontend Setup
 
@@ -296,7 +261,6 @@ Then run: `python train_crack_detector.py --positive-dir Positive --negative-dir
 
 ### Security Checklist
 - [ ] Set secure `SECRET_KEY` in `.env`
-- [ ] Configure SMTP credentials for email
 - [ ] Use HTTPS only in production
 - [ ] Set `FRONTEND_URL` to production domain
 - [ ] Change database from SQLite to PostgreSQL
@@ -308,7 +272,6 @@ Then run: `python train_crack_detector.py --positive-dir Positive --negative-dir
 - **Backend**: Docker + AWS ECS, Azure Container Instances, or Heroku
 - **Frontend**: AWS S3 + CloudFront, Vercel, or Netlify
 - **Database**: PostgreSQL (AWS RDS, Azure Database, or cloud hosted)
-- **Email**: SendGrid or AWS SES (SMTP)
 - **Storage**: AWS S3 or Azure Blob Storage (for images)
 
 See `SECURITY_AUDIT.md` and `IMPLEMENTATION_SUMMARY.md` for production guidelines.
@@ -316,7 +279,6 @@ See `SECURITY_AUDIT.md` and `IMPLEMENTATION_SUMMARY.md` for production guideline
 ## Documentation
 
 - **SECURITY_AUDIT.md** - Detailed security audit and best practices
-- **EMAIL_SETUP_GUIDE.md** - Email provider setup (Gmail, SendGrid, AWS SES)
 - **TESTING_GUIDE.md** - Manual and automated test cases
 - **IMPLEMENTATION_SUMMARY.md** - Implementation overview and checklist
 - **MODEL_TRAINING_GUIDE.md** - Model training documentation
@@ -328,11 +290,6 @@ See `SECURITY_AUDIT.md` and `IMPLEMENTATION_SUMMARY.md` for production guideline
 - Ensure TensorFlow version matches training version: `pip install tensorflow==2.15.0`
 - If model config errors occur (e.g., "quantization_config"), rebuild model from architecture
 - Run training: `python train_crack_detector.py --positive-dir ... --negative-dir ...`
-
-### Email not sending
-- Verify SMTP credentials in `.env`
-- Check SMTP_PORT (usually 587 for TLS, 465 for SSL)
-- Ensure "Less secure apps" enabled (Gmail) or use app passwords
 
 ### Authentication errors
 - Clear browser localStorage
