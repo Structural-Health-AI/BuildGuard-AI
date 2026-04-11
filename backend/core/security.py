@@ -128,7 +128,7 @@ class TokenManager:
         """
         expires_delta = timedelta(hours=settings.password_reset_token_expire_hours)
         return TokenManager.create_access_token(
-            data={"sub": user_id},
+            data={"sub": str(user_id)},
             expires_delta=expires_delta,
             token_type="password_reset"
         )
@@ -149,7 +149,7 @@ class TokenManager:
             hours=settings.email_verification_token_expire_hours
         )
         return TokenManager.create_access_token(
-            data={"sub": user_id, "email": email},
+            data={"sub": str(user_id), "email": email},
             expires_delta=expires_delta,
             token_type="email_verification"
         )
@@ -167,7 +167,7 @@ class TokenManager:
         """
         expires_delta = timedelta(days=settings.refresh_token_expire_days)
         return TokenManager.create_access_token(
-            data={"sub": user_id},
+            data={"sub": str(user_id)},
             expires_delta=expires_delta,
             token_type="refresh"
         )
