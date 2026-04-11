@@ -1,36 +1,38 @@
 """
 Image-based Damage Detection Model
-Uses CNN to detect structural damage from images
+Uses PyTorch ResNet50 to detect structural damage from images
 """
 import os
 import numpy as np
 from typing import Tuple, List, Optional
 from PIL import Image
 import io
+import json
 
-# TensorFlow imports (with fallback for environments without GPU)
+# PyTorch imports
 try:
-    import tensorflow as tf
-    from tensorflow.keras.models import load_model as keras_load_model
-    from tensorflow.keras.applications import MobileNetV2
-    from tensorflow.keras.layers import Dense, GlobalAveragePooling2D, Dropout
-    from tensorflow.keras.models import Model
-    TF_AVAILABLE = True
+    import torch
+    import torch.nn as nn
+    from torchvision import models, transforms
+    TORCH_AVAILABLE = True
 except ImportError:
-    TF_AVAILABLE = False
-    print("TensorFlow not available, using mock predictions")
+    TORCH_AVAILABLE = False
+    torch = None
+    print("PyTorch not available, using mock predictions")
 
 
 # Path to saved model
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "saved_models", "damage_detector.h5")
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "saved_models", "damage_detector_pytorch.pth")
+MODEL_INFO_PATH = os.path.join(os.path.dirname(__file__), "..", "saved_models", "damage_detector_pytorch_info.json")
 
-# Global model
+# Global model and device
 _model = None
+_device = None
 
-# Image settings
-IMG_SIZE = (224, 224)
-# Classes match flow_from_directory alphabetical order: 'damage' then 'no_damage'
-DAMAGE_CLASSES = ["damage", "no_damage"]  # 0 = damage detected, 1 = no damage
+# Image settings (matching PyTorch training notebook)
+IMG_SIZE = 160
+# Classes: 'damage' (0) then 'no_damage' (1)
+DAMAGE_CLASSES = ["damage", "no_damage"]
 
 
 def get_damage_recommendations(damage_type: Optional[str], confidence: float) -> List[str]:
@@ -59,115 +61,122 @@ def get_damage_recommendations(damage_type: Optional[str], confidence: float) ->
     return base_recommendations
 
 
-def create_dummy_model():
-    """Create a placeholder model for testing"""
-    if not TF_AVAILABLE:
-        return None
+def get_device():
+    """Get the appropriate device (GPU or CPU)"""
+    global _device
+    if _device is None:
+        _device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        print(f"Using device: {_device}")
+    return _device
 
-    # Create a simple model based on MobileNetV2
-    base_model = MobileNetV2(
-        weights='imagenet',
-        include_top=False,
-        input_shape=(*IMG_SIZE, 3)
+
+def create_model_architecture():
+    """Create ResNet50 architecture matching training notebook"""
+    # Load pretrained ResNet50
+    model = models.resnet50(pretrained=True)
+    
+    # Freeze backbone
+    for param in model.parameters():
+        param.requires_grad = False
+    
+    # Replace classification head
+    num_features = model.fc.in_features
+    model.fc = nn.Sequential(
+        nn.Linear(num_features, 512),
+        nn.ReLU(),
+        nn.Dropout(0.3),
+        nn.Linear(512, 256),
+        nn.ReLU(),
+        nn.Dropout(0.3),
+        nn.Linear(256, len(DAMAGE_CLASSES))
     )
-
-    # Freeze base model
-    base_model.trainable = False
-
-    # Add classification layers
-    x = base_model.output
-    x = GlobalAveragePooling2D()(x)
-    x = Dense(128, activation='relu')(x)
-    x = Dropout(0.3)(x)
-    outputs = Dense(len(DAMAGE_CLASSES), activation='softmax')(x)
-
-    model = Model(inputs=base_model.input, outputs=outputs)
-    model.compile(
-        optimizer='adam',
-        loss='categorical_crossentropy',
-        metrics=['accuracy']
-    )
-
-    # Save model
-    os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
-    model.save(MODEL_PATH)
-
+    
     return model
 
 
 def load_model():
-    """Load the trained damage detection model"""
+    """Load the trained PyTorch damage detection model"""
     global _model
 
     if _model is not None:
         return _model
 
-    if not TF_AVAILABLE:
+    if not TORCH_AVAILABLE:
+        print("PyTorch not available")
+        return None
+    
+    try:
+        device = get_device()
+        
+        if not os.path.exists(MODEL_PATH):
+            print(f"Model not found at {MODEL_PATH}")
+            return None
+        
+        # Create model architecture
+        _model = create_model_architecture()
+        
+        # Load trained weights
+        state_dict = torch.load(MODEL_PATH, map_location=device)
+        _model.load_state_dict(state_dict)
+        
+        # Move to device and set to evaluation mode
+        _model = _model.to(device)
+        _model.eval()
+        
+        print(f"✓ Model loaded successfully from {MODEL_PATH}")
+        
+        # Print model info if available
+        if os.path.exists(MODEL_INFO_PATH):
+            with open(MODEL_INFO_PATH, 'r') as f:
+                info = json.load(f)
+                print(f"  Model accuracy: {info.get('accuracy', 'N/A')}")
+                print(f"  Image size: {info.get('image_size', IMG_SIZE)}")
+        
+        return _model
+        
+    except Exception as e:
+        print(f"Error loading model: {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
-    try:
-        # Try to load the full model first
-        _model = keras_load_model(MODEL_PATH)
-    except Exception as e:
-        print(f"Could not load full model: {e}")
-        print("Attempting to load weights only...")
-        try:
-            # Build model architecture fresh
-            base_model = MobileNetV2(
-                weights='imagenet',
-                include_top=False,
-                input_shape=(*IMG_SIZE, 3)
-            )
-            base_model.trainable = False
 
-            x = base_model.output
-            x = GlobalAveragePooling2D()(x)
-            x = Dense(128, activation='relu')(x)
-            x = Dropout(0.3)(x)
-            outputs = Dense(len(DAMAGE_CLASSES), activation='softmax')(x)
-
-            _model = Model(inputs=base_model.input, outputs=outputs)
-            _model.compile(
-                optimizer='adam',
-                loss='categorical_crossentropy',
-                metrics=['accuracy']
-            )
-
-            # Load weights from saved model
-            _model.load_weights(MODEL_PATH, skip_mismatch=True)
-            print("Model loaded from weights successfully")
-        except Exception as e2:
-            print(f"Could not load weights: {e2}")
-            print("Creating placeholder model...")
-            _model = create_dummy_model()
-
-    return _model
+def get_image_transforms():
+    """Get the same preprocessing transforms used in training"""
+    if not TORCH_AVAILABLE:
+        return None
+    return transforms.Compose([
+        transforms.Resize((IMG_SIZE, IMG_SIZE)),
+        transforms.ToTensor(),
+        transforms.Normalize(
+            mean=[0.485, 0.456, 0.406],
+            std=[0.229, 0.224, 0.225]
+        )
+    ])
 
 
-def preprocess_image(image_data: bytes) -> np.ndarray:
-    """Preprocess image for model prediction"""
+def preprocess_image(image_data: bytes) -> "torch.Tensor":
+    """Preprocess image for PyTorch model prediction"""
     # Open image
     image = Image.open(io.BytesIO(image_data))
-
+    
     # Convert to RGB if necessary
     if image.mode != 'RGB':
         image = image.convert('RGB')
-
-    # Resize
-    image = image.resize(IMG_SIZE)
-
-    # Convert to array and normalize
-    img_array = np.array(image) / 255.0
-
+    
+    # Apply transforms
+    transform = get_image_transforms()
+    tensor = transform(image)
+    
     # Add batch dimension
-    img_array = np.expand_dims(img_array, axis=0)
-
-    return img_array
+    tensor = tensor.unsqueeze(0)
+    
+    return tensor
 
 
 def predict_image_damage(image_data: bytes) -> Tuple[bool, Optional[str], float, List[str]]:
     """
-    Predict structural damage from an image
+    Predict structural damage from an image using PyTorch model
 
     Args:
         image_data: Raw image bytes
@@ -178,12 +187,11 @@ def predict_image_damage(image_data: bytes) -> Tuple[bool, Optional[str], float,
     model = load_model()
 
     if model is None:
-        # Fallback for when TensorFlow is not available
-        # Return a mock prediction for testing
+        # Fallback for when PyTorch model not available
         import random
         damage_detected = random.random() > 0.5
         if damage_detected:
-            damage_type = random.choice(DAMAGE_CLASSES[1:])
+            damage_type = "damage"
             confidence = random.uniform(0.6, 0.95)
         else:
             damage_type = None
@@ -191,31 +199,51 @@ def predict_image_damage(image_data: bytes) -> Tuple[bool, Optional[str], float,
         recommendations = get_damage_recommendations(damage_type, confidence)
         return damage_detected, damage_type, confidence, recommendations
 
-    # Preprocess image
-    img_array = preprocess_image(image_data)
-
-    # Predict
-    predictions = model.predict(img_array, verbose=0)[0]
-    predicted_class = int(np.argmax(predictions))
-
-    # Bounds check
-    if predicted_class < 0 or predicted_class >= len(DAMAGE_CLASSES):
-        predicted_class = 0  # Default to no damage if out of bounds
-
-    confidence = float(predictions[predicted_class])
-
-    # Determine damage
-    if predicted_class == 1:  # no_damage (class 1)
-        damage_detected = False
-        damage_type = None
-    else:  # damage (class 0)
-        damage_detected = True
-        damage_type = "damage"
-
-    # Get recommendations
-    recommendations = get_damage_recommendations(damage_type, confidence)
-
-    return damage_detected, damage_type, confidence, recommendations
+    device = get_device()
+    
+    try:
+        # Preprocess image
+        img_tensor = preprocess_image(image_data)
+        img_tensor = img_tensor.to(device)
+        
+        # Predict with no gradient computation
+        with torch.no_grad():
+            outputs = model(img_tensor)
+            # Apply softmax to get probabilities
+            probabilities = torch.softmax(outputs, dim=1)[0]
+            predicted_class = torch.argmax(probabilities).item()
+            confidence_score = probabilities[predicted_class].item()
+        
+        # Bounds check
+        if predicted_class < 0 or predicted_class >= len(DAMAGE_CLASSES):
+            predicted_class = 1  # Default to no_damage if out of bounds
+            confidence_score = 0.5
+        
+        # Determine damage
+        # Class 0 = 'damage', Class 1 = 'no_damage'
+        if predicted_class == 0:  # Model predicts "damage"
+            damage_detected = True
+            damage_type = "damage"
+        else:  # Model predicts "no_damage" (class 1)
+            damage_detected = False
+            damage_type = None
+        
+        # Ensure confidence is in valid range
+        confidence = float(confidence_score)
+        confidence = max(0.0, min(1.0, confidence))
+        
+        # Get recommendations
+        recommendations = get_damage_recommendations(damage_type, confidence)
+        
+        return damage_detected, damage_type, confidence, recommendations
+        
+    except Exception as e:
+        print(f"Error during prediction: {e}")
+        import traceback
+        traceback.print_exc()
+        # Return error prediction
+        recommendations = ["Error occurred during analysis. Please try again."]
+        return False, None, 0.0, recommendations
 
 
 # Try to load model on import

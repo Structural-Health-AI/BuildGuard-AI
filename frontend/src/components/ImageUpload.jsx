@@ -181,6 +181,8 @@ function ImageUpload() {
                     style={{ background: result.confidence > 0.8 ? '#059669' : result.confidence > 0.6 ? '#D97706' : '#DC2626' }}
                   />
                 </div>
+                
+
               </div>
 
               {/* Recommendations */}

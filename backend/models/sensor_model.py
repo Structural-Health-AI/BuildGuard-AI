@@ -58,7 +58,7 @@ def create_model_from_real_data():
         print(f"[DEBUG] Dataset exists: {os.path.exists(csv_path)}")
 
         df = pd.read_csv(csv_path)
-        print(f"✓ Loaded {len(df)} real samples from dataset")
+        print(f"[OK] Loaded {len(df)} real samples from dataset")
 
         # Extract features and labels
         # Columns: Accel_X, Accel_Y, Accel_Z, Strain, Temp, Condition Label
@@ -77,11 +77,11 @@ def create_model_from_real_data():
         joblib.dump(model, MODEL_PATH)
         joblib.dump(scaler, SCALER_PATH)
 
-        print(f"✓ Model trained on {len(df)} real samples and saved")
+        print(f"[OK] Model trained on {len(df)} real samples and saved")
         return model, scaler
 
     except Exception as e:
-        print(f"✗ Failed to load real dataset: {e}")
+        print(f"[ERROR] Failed to load real dataset: {e}")
         raise
 
 
@@ -95,7 +95,7 @@ def load_model():
     try:
         _model = joblib.load(MODEL_PATH)
         _scaler = joblib.load(SCALER_PATH)
-        print("✓ Loaded existing model from disk")
+        print("[OK] Loaded existing model from disk")
     except FileNotFoundError:
         print("Model not found, training new model on real data...")
         _model, _scaler = create_model_from_real_data()

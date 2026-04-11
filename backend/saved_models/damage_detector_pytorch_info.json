@@ -1,0 +1,11 @@
+{
+  "classes": [
+    "damage",
+    "no_damage"
+  ],
+  "image_size": 160,
+  "accuracy": 0.999675,
+  "timestamp": "2026-04-11T23:22:07.002090",
+  "model_type": "ResNet50",
+  "total_params": 24688962
+}
