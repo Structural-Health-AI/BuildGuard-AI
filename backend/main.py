@@ -239,4 +239,27 @@ async def get_dashboard_stats(current_user = Depends(get_current_user)):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001, reload=False)
+    import socket
+    
+    # Get port from environment variable or use default
+    port = int(os.getenv("BACKEND_PORT", 8001))
+    
+    # Try to find an available port if default is in use
+    def find_available_port(start_port=8001, max_attempts=10):
+        """Find an available port starting from start_port"""
+        for offset in range(max_attempts):
+            test_port = start_port + offset
+            try:
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.bind(("0.0.0.0", test_port))
+                sock.close()
+                return test_port
+            except OSError:
+                continue
+        return start_port  # Return default if all fail
+    
+    available_port = find_available_port(port)
+    if available_port != port:
+        print(f"⚠ Port {port} already in use, using port {available_port} instead")
+    
+    uvicorn.run(app, host="0.0.0.0", port=available_port, reload=False)

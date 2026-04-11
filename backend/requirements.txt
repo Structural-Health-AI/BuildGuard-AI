@@ -17,5 +17,6 @@ slowapi==0.1.9
 python-jose==3.3.0
 passlib==1.7.4
 aiosmtplib==3.0.1
-tensorflow==2.15.0
+torch>=2.0.0
+torchvision>=0.15.0
 matplotlib==3.8.2
