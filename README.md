@@ -23,7 +23,8 @@ AI-powered Structural Health Monitoring and Damage Detection System with secure 
 |-----------|------------|
 | Backend | FastAPI (Python) |
 | Frontend | React + Vite + TailwindCSS |
-| ML Models | TensorFlow/Keras + Scikit-learn |
+| ML Models | PyTorch + Scikit-learn |
+| GPU Support | CUDA 11.8+ (optional) |
 | Database | SQLite |
 
 ## Project Structure
@@ -106,6 +107,40 @@ python main.py
 
 Backend will be available at http://localhost:8001
 API docs at http://localhost:8001/docs
+
+### Model Setup
+
+**Important**: The PyTorch damage detection model (94.49 MB) is not included in the repository due to GitHub's file size limits.
+
+#### Option 1: Download from GitHub Releases (Recommended)
+
+```bash
+# Download the model
+wget https://github.com/Structural-Health-AI/BuildGuard-AI/releases/download/v1.0/damage_detector_pytorch.pth -O backend/saved_models/damage_detector_pytorch.pth
+
+# On Windows, use:
+# Invoke-WebRequest -Uri "https://github.com/Structural-Health-AI/BuildGuard-AI/releases/download/v1.0/damage_detector_pytorch.pth" -OutFile "backend/saved_models/damage_detector_pytorch.pth"
+```
+
+#### Option 2: Train Your Own Model
+
+```bash
+cd backend
+python train_crack_detector.py
+```
+
+See [Training Models](#training-models) section for details.
+
+#### Verify Model is Loaded
+
+When you start the backend, you should see:
+```
+[OK] Loaded existing model from disk
+✓ Model loaded successfully
+  Model accuracy: 0.999675
+  Image size: 160
+INFO:     Uvicorn running on http://0.0.0.0:8001
+```
 
 ### Frontend Setup
 
@@ -205,38 +240,53 @@ See `TESTING_GUIDE.md` for comprehensive test cases.
 - **File**: `backend/saved_models/sensor_classifier.pkl`
 
 ### Crack Detection Model
-- **Architecture**: MobileNetV2 Transfer Learning (pre-trained ImageNet)
-- **Input**: 224×224 RGB images
+- **Architecture**: ResNet50 Transfer Learning (pre-trained ImageNet)
+- **Input**: 160×160 RGB images
 - **Output**: Binary classification (damage detected / no damage)
-- **Training**: Uses data augmentation (rotation, shift, flip, zoom) + early stopping
-- **Performance**: 99.58% validation accuracy (trained on 40,000 images: 20K damage + 20K no-damage)
-- **Dataset Split**: 32K training / 8K validation
-- **File**: `backend/saved_models/damage_detector.h5`
-- **Training Time**: ~1 hour on standard hardware
+- **Framework**: PyTorch
+- **Training**: Data augmentation (rotation, flip, color jitter) + early stopping (patience=5)
+- **Performance**: **99.97% validation accuracy** (trained on 80,000 images: 40K damage + 40K no-damage)
+- **Parameters**: 24.6M total, ~4M trainable
+- **Dataset Split**: 40K training / 40K validation
+- **File**: `backend/saved_models/damage_detector_pytorch.pth` (94.49 MB)
+- **Training Time**: ~45 minutes on GPU (CUDA 11.8)
+- **Download**: See [Model Setup](#model-setup) section below
 
 ## Training Models
 
-### Train Crack Detection Model
+### Train Crack Detection Model (PyTorch)
 
-To train the crack detection model on your dataset:
+To train the crack detection model using your own dataset:
 
 ```bash
 cd backend
 
-python train_crack_detector.py \
-  --positive-dir "/path/to/Positive" \
-  --negative-dir "/path/to/Negative"
+python train_crack_detector.py
 ```
 
-**Parameters**:
-- `--positive-dir`: Directory containing damage/crack images
-- `--negative-dir`: Directory containing images without damage
-- `--output-path`: Where to save the model (default: `backend/saved_models/damage_detector.h5`)
+This will:
+- Load dataset from `data/images/` directory (organized by train/val and damage/no_damage)
+- Train ResNet50 with transfer learning
+- Save model to `backend/saved_models/damage_detector_pytorch.pth`
+- Display accuracy metrics and training history visualizations
 
-**Dataset format**: JPG, JPEG, or PNG images
-**Recommended**: 50+ images per category for good results
+**Dataset Format**:
+```
+data/images/
+├── train/
+│   ├── damage/       # Images with damage/cracks
+│   └── no_damage/    # Images without damage
+└── validation/
+    ├── damage/
+    └── no_damage/
+```
 
-See `MODEL_TRAINING_GUIDE.md` for detailed training instructions.
+**Requirements**:
+- Minimum 1,000 images per category (recommended 10,000+)
+- JPG, JPEG, or PNG format
+- Mixed lighting/angles for robust training
+
+See `MODEL_TRAINING_GUIDE.md` and `notebooks/Image_Classification_PyTorch.ipynb` for detailed instructions.
 
 ## Datasets
 
@@ -247,11 +297,18 @@ See `MODEL_TRAINING_GUIDE.md` for detailed training instructions.
 ### Image Data (Crack Detection)
 - [Kaggle: Concrete Crack Images for Classification](https://www.kaggle.com/datasets/arnavr10880/concrete-crack-images-for-classification) - 40K labeled images of concrete with/without cracks
 
-**For crack detection training**, organize images in two folders:
-- `Positive/` - Images with cracks/damage
-- `Negative/` - Images without damage
+**For training your own model**, organize images in the following structure:
+```
+data/images/
+├── train/
+│   ├── damage/       # 40,000 images with cracks/damage
+│   └── no_damage/    # 40,000 images without damage
+└── validation/
+    ├── damage/       # 40,000 validation images with damage
+    └── no_damage/    # 40,000 validation images without damage
+```
 
-Then run: `python train_crack_detector.py --positive-dir Positive --negative-dir Negative`
+Then use the Jupyter notebook (recommended) or run: `python train_crack_detector.py`
 
 ## Documentation
 
@@ -259,14 +316,51 @@ Then run: `python train_crack_detector.py --positive-dir Positive --negative-dir
 - **TESTING_GUIDE.md** - Manual and automated test cases
 - **MODEL_TRAINING_GUIDE.md** - Model training documentation
 - **IMPLEMENTATION_SUMMARY.md** - Implementation overview
+- **notebooks/Image_Classification_PyTorch.ipynb** - Interactive training notebook with visualizations
+
+## Model Performance
+
+| Metric | Value |
+|--------|-------|
+| Architecture | ResNet50 Transfer Learning |
+| Validation Accuracy | **99.97%** |
+| Training Images | 40,000 (damage/no-damage binary) |
+| Validation Images | 40,000 |
+| Input Size | 160×160 pixels |
+| Framework | PyTorch |
+| GPU Training Time | ~45 minutes (CUDA 11.8) |
+| Inference Time | ~50ms (GPU), ~200ms (CPU) |
+
+## Model Download
+
+The trained PyTorch model can be downloaded from:
+- **GitHub Releases**: https://github.com/Structural-Health-AI/BuildGuard-AI/releases
+- **Size**: 94.49 MB
+- **Format**: PyTorch checkpoint (.pth)
+
+Place in: `backend/saved_models/damage_detector_pytorch.pth`
+
+## Contributing
+
+Contributions are welcome! Please ensure you:
+1. Train models locally and test thoroughly
+2. Store large model files via GitHub Releases, not in git
+3. Update model files separately using GitHub Releases
+4. Document any new features in relevant markdown files
+5. Test all endpoints before submitting changes
 
 ## Troubleshooting
 
 ### Model not loading
-- Check if `.h5` file exists in `backend/saved_models/`
-- Ensure TensorFlow version matches training version: `pip install tensorflow==2.15.0`
-- If model config errors occur (e.g., "quantization_config"), rebuild model from architecture
-- Run training: `python train_crack_detector.py --positive-dir ... --negative-dir ...`
+- Check if `damage_detector_pytorch.pth` exists in `backend/saved_models/`
+- If missing, download from GitHub Releases or train your own model
+- Ensure PyTorch is installed: `pip install torch torchvision`
+- For GPU support (CUDA 11.8): `pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118`
+- Model will work with CPU but inference will be slower
+
+### PyTorch import errors
+- Reinstall dependencies: `pip install -r requirements.txt`
+- Verify installation: `python -c "import torch; print(torch.__version__)"`
 
 ### Authentication errors
 - Clear browser localStorage
