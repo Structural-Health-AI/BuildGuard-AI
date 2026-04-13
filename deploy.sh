@@ -237,42 +237,22 @@ print_status "Step 8/8: Setting up backend service..."
 mkdir -p /var/log/buildguard
 chmod 755 /var/log/buildguard
 
-# Create systemd service with correct paths using tee to avoid variable expansion issues
-tee /etc/systemd/system/buildguard-backend.service > /dev/null << 'EOF'
-[Unit]
-Description=BuildGuard-AI Backend (FastAPI + Gunicorn)
-After=network.target postgresql.service
-Wants=postgresql.service
+# Use Python script to generate systemd service file (more reliable than bash)
+print_status "Generating systemd service file using Python..."
+python3 "$PROJECT_DIR/generate_systemd_service.py" "$PROJECT_DIR"
 
-[Service]
-Type=simple
-User=root
-WorkingDirectory=PROJECT_DIR_BACKEND
-Environment="PATH=PROJECT_DIR_VENV/bin"
-EnvironmentFile=-PROJECT_DIR_ENV
+if [ ! -f /etc/systemd/system/buildguard-backend.service ]; then
+    print_error "Failed to generate systemd service file"
+    exit 1
+fi
 
-ExecStart=PROJECT_DIR_GUNICORN --workers 2 --worker-class uvicorn.workers.UvicornWorker --bind 127.0.0.1:8000 --timeout 60 --access-logfile /var/log/buildguard/access.log --error-logfile /var/log/buildguard/error.log main:app
+print_status "Updated systemd service file. Reloading daemon..."
 
-Restart=always
-RestartSec=10
-LimitNOFILE=65535
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# Use sed to replace placeholders (avoiding / issues by using | as delimiter)
-sed -i "s|PROJECT_DIR_BACKEND|$PROJECT_DIR/backend|g" /etc/systemd/system/buildguard-backend.service
-sed -i "s|PROJECT_DIR_VENV|$PROJECT_DIR/venv|g" /etc/systemd/system/buildguard-backend.service
-sed -i "s|PROJECT_DIR_ENV|$PROJECT_DIR/backend/.env|g" /etc/systemd/system/buildguard-backend.service
-sed -i "s|PROJECT_DIR_GUNICORN|$PROJECT_DIR/venv/bin/gunicorn|g" /etc/systemd/system/buildguard-backend.service
-
-print_status "Service file created at /etc/systemd/system/buildguard-backend.service"
-print_status "Verifying service file contents..."
-cat /etc/systemd/system/buildguard-backend.service
+# Reload systemd daemon
+systemctl daemon-reload
 
 # Enable and start service
-systemctl daemon-reload
+print_status "Enabling and starting buildguard-backend.service..."
 systemctl enable buildguard-backend.service
 systemctl start buildguard-backend.service
 
@@ -282,8 +262,10 @@ if systemctl is-active --quiet buildguard-backend.service; then
     print_success "Backend service started successfully"
 else
     print_error "Backend service failed to start"
-    print_status "Checking logs:"
-    journalctl -u buildguard-backend.service -n 20
+    print_status "Checking systemd service status:"
+    systemctl status buildguard-backend.service --no-pager
+    print_status "Checking recent logs:"
+    journalctl -u buildguard-backend.service -n 30 --no-pager
     exit 1
 fi
 
