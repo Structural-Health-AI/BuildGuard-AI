@@ -83,7 +83,8 @@ systemctl enable postgresql
 # Create database and user
 print_status "Creating PostgreSQL user and database..."
 sudo -u postgres psql << EOF
-CREATE USER IF NOT EXISTS buildguard_user WITH PASSWORD 'buildguard_secure_2024';
+DROP USER IF EXISTS buildguard_user;
+CREATE USER buildguard_user WITH PASSWORD 'buildguard_secure_2024';
 CREATE DATABASE buildguard_db OWNER buildguard_user;
 GRANT ALL PRIVILEGES ON DATABASE buildguard_db TO buildguard_user;
 ALTER DATABASE buildguard_db OWNER TO buildguard_user;
@@ -96,7 +97,17 @@ print_success "PostgreSQL configured"
 ###############################################################################
 print_status "Step 4/8: Setting up Python backend..."
 
-cd /home/BuildGuard-AI
+# Determine project directory (script must run from repo root)
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ ! -f "$PROJECT_DIR/backend/main.py" ]; then
+    print_error "backend/main.py not found in $PROJECT_DIR"
+    print_error "Please run this script from the BuildGuard-AI directory:"
+    print_error "  cd /path/to/BuildGuard-AI && sudo bash deploy.sh"
+    exit 1
+fi
+
+print_status "Project directory: $PROJECT_DIR"
+cd "$PROJECT_DIR"
 
 # Create Python virtual environment
 python3 -m venv venv
@@ -160,7 +171,7 @@ print_success ".env file created"
 ###############################################################################
 print_status "Step 6/8: Building React frontend..."
 
-cd frontend
+cd "$PROJECT_DIR/frontend"
 npm install
 npm run build
 
@@ -175,7 +186,7 @@ print_status "Step 7/8: Configuring Nginx..."
 rm -f /etc/nginx/sites-enabled/default
 
 # Copy nginx config
-cp /home/BuildGuard-AI/buildguard-nginx.conf /etc/nginx/sites-available/buildguard
+cp "$PROJECT_DIR/buildguard-nginx.conf" /etc/nginx/sites-available/buildguard
 ln -sf /etc/nginx/sites-available/buildguard /etc/nginx/sites-enabled/buildguard
 
 # Test Nginx config
@@ -198,8 +209,36 @@ print_status "Step 8/8: Setting up backend service..."
 mkdir -p /var/log/buildguard
 chmod 755 /var/log/buildguard
 
-# Copy systemd service
-cp /home/BuildGuard-AI/buildguard-backend.service /etc/systemd/system/
+# Create systemd service with correct paths
+cat > /etc/systemd/system/buildguard-backend.service << 'SVCEOF'
+[Unit]
+Description=BuildGuard-AI Backend (FastAPI + Gunicorn)
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=notify
+User=root
+WorkingDirectory=$PROJECT_DIR/backend
+Environment="PATH=$PROJECT_DIR/venv/bin"
+EnvironmentFile=$PROJECT_DIR/backend/.env
+
+ExecStart=$PROJECT_DIR/venv/bin/gunicorn \
+    --workers 2 \
+    --worker-class uvicorn.workers.UvicornWorker \
+    --bind 127.0.0.1:8000 \
+    --timeout 60 \
+    --access-logfile /var/log/buildguard/access.log \
+    --error-logfile /var/log/buildguard/error.log \
+    main:app
+
+Restart=always
+RestartSec=10
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target
+SVCEOF
 
 # Enable and start service
 systemctl daemon-reload
@@ -231,7 +270,7 @@ else
 fi
 
 # Check frontend
-if [ -f /home/BuildGuard-AI/frontend/dist/index.html ]; then
+if [ -f "$PROJECT_DIR/frontend/dist/index.html" ]; then
     print_success "Frontend build verified"
 else
     print_error "Frontend build not found"
