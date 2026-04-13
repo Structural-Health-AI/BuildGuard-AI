@@ -1,0 +1,51 @@
+[Unit]
+Description=BuildGuard-AI Backend (FastAPI + Gunicorn)
+Documentation=https://github.com/yourusername/BuildGuard-AI
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=notify
+User=root
+WorkingDirectory=/home/BuildGuard-AI/backend
+
+# Python environment
+Environment="PATH=/home/BuildGuard-AI/venv/bin"
+EnvironmentFile=/home/BuildGuard-AI/backend/.env
+
+# Startup command
+ExecStart=/home/BuildGuard-AI/venv/bin/gunicorn \
+    --workers 2 \
+    --worker-class uvicorn.workers.UvicornWorker \
+    --bind 127.0.0.1:8000 \
+    --timeout 60 \
+    --graceful-timeout 30 \
+    --keep-alive 2 \
+    --access-logfile /var/log/buildguard/access.log \
+    --error-logfile /var/log/buildguard/error.log \
+    --log-level info \
+    main:app
+
+# Restart policy
+Restart=always
+RestartSec=10
+StartLimitInterval=60
+StartLimitBurst=5
+
+# Process management
+KillMode=mixed
+KillSignal=SIGQUIT
+
+# Resource limits
+LimitNOFILE=65535
+LimitNPROC=2048
+
+# Security
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/home/BuildGuard-AI/backend/uploads /var/log/buildguard
+
+[Install]
+WantedBy=multi-user.target
