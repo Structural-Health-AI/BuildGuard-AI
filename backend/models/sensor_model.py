@@ -219,7 +219,7 @@ def predict_sensor_health(
 
     # Map prediction to damage level
     damage_levels = ["healthy", "minor_damage", "severe_damage"]
-    damage_level = damage_levels[prediction]
+    damage_level = damage_levels[int(prediction)]
 
     # Get recommendations
     recommendations = get_damage_recommendations(damage_level)
