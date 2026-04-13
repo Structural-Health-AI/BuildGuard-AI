@@ -245,7 +245,7 @@ After=network.target postgresql.service
 Wants=postgresql.service
 
 [Service]
-Type=notify
+Type=simple
 User=root
 WorkingDirectory=WORKDIR_PLACEHOLDER
 Environment="PATH=VENV_PATH_PLACEHOLDER/bin"
@@ -266,6 +266,11 @@ sed -i "s|WORKDIR_PLACEHOLDER|$PROJECT_DIR/backend|g" /etc/systemd/system/buildg
 sed -i "s|VENV_PATH_PLACEHOLDER|$PROJECT_DIR/venv|g" /etc/systemd/system/buildguard-backend.service
 sed -i "s|ENV_FILE_PLACEHOLDER|$PROJECT_DIR/backend/.env|g" /etc/systemd/system/buildguard-backend.service
 sed -i "s|GUNICORN_PATH_PLACEHOLDER|$PROJECT_DIR/venv/bin/gunicorn|g" /etc/systemd/system/buildguard-backend.service
+
+# Verify the service file was created correctly
+print_status "Service file created at /etc/systemd/system/buildguard-backend.service"
+print_status "Service file contents:"
+cat /etc/systemd/system/buildguard-backend.service
 
 # Enable and start service
 systemctl daemon-reload
