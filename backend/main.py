@@ -6,6 +6,7 @@ import os
 import sqlite3
 from contextlib import asynccontextmanager
 from datetime import datetime
+from urllib.parse import urlparse
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -21,6 +22,21 @@ from database import init_database, SessionLocal
 # Database setup
 DATABASE_PATH = "buildguard.db"
 settings = get_settings()
+
+
+def extract_hostnames(origins: str) -> list[str]:
+    """Extract hostnames from CORS origins (URLs or plain hostnames)"""
+    hostnames = []
+    for origin in origins.split(","):
+        origin = origin.strip()
+        if origin.startswith(("http://", "https://")):
+            # Parse URL and extract hostname
+            parsed = urlparse(origin)
+            hostnames.append(parsed.netloc)
+        else:
+            # Already a hostname
+            hostnames.append(origin)
+    return hostnames
 
 
 def init_legacy_database():
@@ -121,10 +137,16 @@ app = FastAPI(
 
 # ============= SECURITY MIDDLEWARE =============
 
+# Extract hostnames for TrustedHostMiddleware (it needs just hostnames, not full URLs)
+if settings.environment == "production":
+    trusted_hosts = extract_hostnames(settings.allowed_origins)
+else:
+    trusted_hosts = ["*"]
+
 # Trusted Host Middleware - only allow requests from trusted hosts
 app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=settings.cors_origins if settings.environment == "production" else ["*"]
+    allowed_hosts=trusted_hosts
 )
 
 # CORS middleware - restrictive in production
