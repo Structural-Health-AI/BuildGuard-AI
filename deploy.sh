@@ -238,7 +238,8 @@ mkdir -p /var/log/buildguard
 chmod 755 /var/log/buildguard
 
 # Create systemd service with correct paths
-cat > /etc/systemd/system/buildguard-backend.service << 'SVCEOF'
+# Use unquoted heredoc to allow bash variable expansion
+cat > /etc/systemd/system/buildguard-backend.service << SVCEOF
 [Unit]
 Description=BuildGuard-AI Backend (FastAPI + Gunicorn)
 After=network.target postgresql.service
@@ -247,11 +248,13 @@ Wants=postgresql.service
 [Service]
 Type=simple
 User=root
-WorkingDirectory=WORKDIR_PLACEHOLDER
-Environment="PATH=VENV_PATH_PLACEHOLDER/bin"
-EnvironmentFile=ENV_FILE_PLACEHOLDER
+WorkingDirectory=$PROJECT_DIR/backend
+Environment="PATH=$PROJECT_DIR/venv/bin"
+EnvironmentFile=-$PROJECT_DIR/backend/.env
+StandardOutput=journal
+StandardError=journal
 
-ExecStart=GUNICORN_PATH_PLACEHOLDER --workers 2 --worker-class uvicorn.workers.UvicornWorker --bind 127.0.0.1:8000 --timeout 60 --access-logfile /var/log/buildguard/access.log --error-logfile /var/log/buildguard/error.log main:app
+ExecStart=$PROJECT_DIR/venv/bin/gunicorn --workers 2 --worker-class uvicorn.workers.UvicornWorker --bind 127.0.0.1:8000 --timeout 60 --access-logfile /var/log/buildguard/access.log --error-logfile /var/log/buildguard/error.log main:app
 
 Restart=always
 RestartSec=10
@@ -261,16 +264,12 @@ LimitNOFILE=65535
 WantedBy=multi-user.target
 SVCEOF
 
-# Replace placeholders with actual paths
-sed -i "s|WORKDIR_PLACEHOLDER|$PROJECT_DIR/backend|g" /etc/systemd/system/buildguard-backend.service
-sed -i "s|VENV_PATH_PLACEHOLDER|$PROJECT_DIR/venv|g" /etc/systemd/system/buildguard-backend.service
-sed -i "s|ENV_FILE_PLACEHOLDER|$PROJECT_DIR/backend/.env|g" /etc/systemd/system/buildguard-backend.service
-sed -i "s|GUNICORN_PATH_PLACEHOLDER|$PROJECT_DIR/venv/bin/gunicorn|g" /etc/systemd/system/buildguard-backend.service
-
 # Verify the service file was created correctly
 print_status "Service file created at /etc/systemd/system/buildguard-backend.service"
-print_status "Service file contents:"
-cat /etc/systemd/system/buildguard-backend.service
+if systemctl show-environment &>/dev/null; then
+    print_status "systemd is available, checking service file syntax..."
+    systemd-analyze verify /etc/systemd/system/buildguard-backend.service 2>&1 || print_warning "Service file check returned warnings (may be non-critical)"
+fi
 
 # Enable and start service
 systemctl daemon-reload
