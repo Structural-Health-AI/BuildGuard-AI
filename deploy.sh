@@ -120,6 +120,34 @@ pip install --upgrade pip
 pip install -r backend/requirements.txt
 pip install gunicorn psycopg2-binary
 
+# Ensure required directories exist
+mkdir -p "$PROJECT_DIR/data/sensor"
+mkdir -p "$PROJECT_DIR/data/images/train/damage"
+mkdir -p "$PROJECT_DIR/data/images/train/no_damage"
+mkdir -p "$PROJECT_DIR/data/images/validation/damage"
+mkdir -p "$PROJECT_DIR/data/images/validation/no_damage"
+mkdir -p "$PROJECT_DIR/backend/saved_models"
+mkdir -p "$PROJECT_DIR/backend/uploads"
+
+# If dataset doesn't exist, create a sample one (will be replaced with real data if needed)
+if [ ! -f "$PROJECT_DIR/data/sensor/building_health_monitoring_dataset.csv" ]; then
+    print_warning "Dataset not found, creating placeholder..."
+    mkdir -p "$PROJECT_DIR/data/sensor"
+    cat > "$PROJECT_DIR/data/sensor/building_health_monitoring_dataset.csv" << 'CSVEOF'
+Accel_X (m/s^2),Accel_Y (m/s^2),Accel_Z (m/s^2),Strain (με),Temp (°C),Condition Label
+0.05,0.05,0.1,15,24,healthy
+0.06,0.04,0.12,18,25,healthy
+0.04,0.06,0.11,16,23,healthy
+0.15,0.14,0.25,85,28,minor_damage
+0.16,0.15,0.26,88,29,minor_damage
+0.14,0.16,0.24,82,27,minor_damage
+0.4,0.42,0.6,210,35,severe_damage
+0.41,0.39,0.58,205,34,severe_damage
+0.39,0.41,0.62,215,36,severe_damage
+CSVEOF
+    print_warning "Placeholder dataset created. Replace with real data at: $PROJECT_DIR/data/sensor/building_health_monitoring_dataset.csv"
+fi
+
 print_success "Backend dependencies installed"
 
 ###############################################################################

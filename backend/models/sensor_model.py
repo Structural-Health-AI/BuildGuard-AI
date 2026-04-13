@@ -56,12 +56,29 @@ def create_model_from_real_data():
 
         print(f"[DEBUG] Loading real dataset from: {csv_path}")
         print(f"[DEBUG] Dataset exists: {os.path.exists(csv_path)}")
+        
+        # Ensure parent directory exists
+        os.makedirs(os.path.dirname(csv_path), exist_ok=True)
+
+        if not os.path.exists(csv_path):
+            print(f"[WARNING] Dataset file not found at {csv_path}")
+            raise FileNotFoundError(f"Dataset not found at {csv_path}")
 
         df = pd.read_csv(csv_path)
+        
+        # Validate that we have data
+        if len(df) == 0:
+            raise ValueError("Dataset is empty")
+        
+        # Check required columns
+        required_cols = ['Accel_X (m/s^2)', 'Accel_Y (m/s^2)', 'Accel_Z (m/s^2)', 'Strain (με)', 'Temp (°C)', 'Condition Label']
+        missing_cols = [col for col in required_cols if col not in df.columns]
+        if missing_cols:
+            raise ValueError(f"Dataset missing required columns: {missing_cols}")
+        
         print(f"[OK] Loaded {len(df)} real samples from dataset")
 
         # Extract features and labels
-        # Columns: Accel_X, Accel_Y, Accel_Z, Strain, Temp, Condition Label
         X = df[['Accel_X (m/s^2)', 'Accel_Y (m/s^2)', 'Accel_Z (m/s^2)', 'Strain (με)', 'Temp (°C)']].values
         y = df['Condition Label'].values
 
@@ -80,6 +97,10 @@ def create_model_from_real_data():
         print(f"[OK] Model trained on {len(df)} real samples and saved")
         return model, scaler
 
+    except FileNotFoundError as e:
+        print(f"[WARNING] Dataset file not found: {e}")
+        print("[INFO] Creating synthetic model instead...")
+        return create_synthetic_model()
     except Exception as e:
         print(f"[WARNING] Failed to load real dataset: {e}")
         print("[INFO] Creating synthetic model instead...")
