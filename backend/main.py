@@ -6,18 +6,14 @@ import os
 import sqlite3
 from contextlib import asynccontextmanager
 from datetime import datetime
-from fastapi import FastAPI, Request, Depends
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.staticfiles import StaticFiles
-from slowapi import _rate_limit_exceeded_handler
-from slowapi.errors import RateLimitExceeded
 
 from api.sensor_routes import router as sensor_router
 from api.image_routes import router as image_router
 from api.report_routes import router as report_router
-from api.auth_routes import router as auth_router, limiter
-from api.dependencies import get_current_user
 from core.config import get_settings
 from database import init_database, SessionLocal
 
@@ -156,15 +152,10 @@ async def add_security_headers(request: Request, call_next):
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     return response
 
-# Add rate limiting error handler
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-
 # Mount static files for uploaded images
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # Include routers
-app.include_router(auth_router, tags=["Authentication"])
 app.include_router(sensor_router, prefix="/api/sensor", tags=["Sensor Analysis"])
 app.include_router(image_router, prefix="/api/image", tags=["Image Analysis"])
 app.include_router(report_router, prefix="/api/reports", tags=["Reports"])
@@ -196,7 +187,7 @@ async def health_check():
 
 
 @app.get("/api/dashboard/stats")
-async def get_dashboard_stats(current_user = Depends(get_current_user)):
+async def get_dashboard_stats():
     """Get dashboard statistics"""
     conn = sqlite3.connect(DATABASE_PATH)
     cursor = conn.cursor()
