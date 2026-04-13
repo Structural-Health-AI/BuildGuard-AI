@@ -46,3 +46,6 @@ credentials.json
 # Jupyter
 .ipynb_checkpoints/
 
+# Git rewrite temp directory
+.git-rewrite/
+
