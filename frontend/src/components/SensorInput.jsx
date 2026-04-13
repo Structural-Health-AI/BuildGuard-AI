@@ -21,7 +21,7 @@ const itemVariants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 
 
 function SensorInput() {
   const [formData, setFormData] = useState({
-    accel_x: '', accel_y: '', accel_z: '-9.8', strain: '', temperature: '',
+    accel_x: '', accel_y: '', accel_z: '9.8', strain: '', temperature: '',
     building_name: '', location: ''
   })
   const [result, setResult] = useState(null)
@@ -55,9 +55,9 @@ function SensorInput() {
 
   const loadSampleData = (type) => {
     const samples = {
-      healthy: { accel_x: '0.15', accel_y: '0.42', accel_z: '-9.74', strain: '85', temperature: '24' },
-      minor: { accel_x: '0.48', accel_y: '0.19', accel_z: '-9.73', strain: '105', temperature: '24' },
-      severe: { accel_x: '0.78', accel_y: '0.06', accel_z: '-9.73', strain: '170', temperature: '24' }
+      healthy: { accel_x: '0.15', accel_y: '0.42', accel_z: '9.74', strain: '85', temperature: '24' },
+      minor: { accel_x: '0.48', accel_y: '0.19', accel_z: '9.73', strain: '105', temperature: '24' },
+      severe: { accel_x: '0.78', accel_y: '0.06', accel_z: '9.73', strain: '170', temperature: '24' }
     }
     if (samples[type]) setFormData(prev => ({ ...prev, ...samples[type] }))
   }
