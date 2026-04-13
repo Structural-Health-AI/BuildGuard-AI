@@ -92,9 +92,22 @@ async def lifespan(app: FastAPI):
     init_database()  # Initialize SQLAlchemy models
     init_legacy_database()  # Initialize legacy SQLite tables
 
-    # Create uploads directory if not exists
-    os.makedirs("uploads", exist_ok=True)
-    os.makedirs("saved_models", exist_ok=True)
+    # Create required directories if they don't exist
+    required_dirs = [
+        "uploads",
+        "saved_models",
+        "../data/sensor",
+        "../data/images/train/damage",
+        "../data/images/train/no_damage",
+        "../data/images/validation/damage",
+        "../data/images/validation/no_damage"
+    ]
+    
+    for dir_path in required_dirs:
+        try:
+            os.makedirs(dir_path, exist_ok=True)
+        except Exception as e:
+            print(f"[WARNING] Could not create directory {dir_path}: {e}")
 
     yield
 
