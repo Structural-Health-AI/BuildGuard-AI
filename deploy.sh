@@ -210,7 +210,7 @@ mkdir -p /var/log/buildguard
 chmod 755 /var/log/buildguard
 
 # Create systemd service with correct paths
-cat > /etc/systemd/system/buildguard-backend.service << 'SVCEOF'
+cat > /etc/systemd/system/buildguard-backend.service << SVCEOF
 [Unit]
 Description=BuildGuard-AI Backend (FastAPI + Gunicorn)
 After=network.target postgresql.service
@@ -223,13 +223,13 @@ WorkingDirectory=$PROJECT_DIR/backend
 Environment="PATH=$PROJECT_DIR/venv/bin"
 EnvironmentFile=$PROJECT_DIR/backend/.env
 
-ExecStart=$PROJECT_DIR/venv/bin/gunicorn \
-    --workers 2 \
-    --worker-class uvicorn.workers.UvicornWorker \
-    --bind 127.0.0.1:8000 \
-    --timeout 60 \
-    --access-logfile /var/log/buildguard/access.log \
-    --error-logfile /var/log/buildguard/error.log \
+ExecStart=$PROJECT_DIR/venv/bin/gunicorn \\
+    --workers 2 \\
+    --worker-class uvicorn.workers.UvicornWorker \\
+    --bind 127.0.0.1:8000 \\
+    --timeout 60 \\
+    --access-logfile /var/log/buildguard/access.log \\
+    --error-logfile /var/log/buildguard/error.log \\
     main:app
 
 Restart=always
