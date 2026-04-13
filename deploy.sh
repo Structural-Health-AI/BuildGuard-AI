@@ -203,7 +203,13 @@ cd "$PROJECT_DIR/frontend"
 npm install
 npm run build
 
-print_success "Frontend built successfully"
+# Check if build succeeded (it does even with chunk size warnings)
+if [ -d dist ] && [ -f dist/index.html ]; then
+    print_success "Frontend built successfully"
+else
+    print_error "Frontend build failed - dist/index.html not found"
+    exit 1
+fi
 
 ###############################################################################
 # Step 7: Setup Nginx
