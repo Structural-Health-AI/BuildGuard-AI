@@ -330,11 +330,11 @@ if __name__ == "__main__":
     import uvicorn
     import socket
     
-    # Get port from environment variable or use default
-    port = int(os.getenv("BACKEND_PORT", 8001))
+    # Get port from environment variable or use default (8000 for production)
+    port = int(os.getenv("BACKEND_PORT", 8000))
     
     # Try to find an available port if default is in use
-    def find_available_port(start_port=8001, max_attempts=10):
+    def find_available_port(start_port=8000, max_attempts=10):
         """Find an available port starting from start_port"""
         for offset in range(max_attempts):
             test_port = start_port + offset
