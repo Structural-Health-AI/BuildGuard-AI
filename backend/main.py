@@ -220,10 +220,18 @@ async def health_check():
 
 
 # Optional Bearer token for sensitive endpoints
-security = HTTPBearer(optional=True)
+security = HTTPBearer()
 
 
-def verify_admin_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> bool:
+async def get_token_or_none(credentials: HTTPAuthorizationCredentials = Depends(security)) -> HTTPAuthorizationCredentials | None:
+    """
+    Get token from request, return None if not provided
+    This dependency makes the token optional
+    """
+    return credentials
+
+
+def verify_admin_token(credentials: HTTPAuthorizationCredentials | None = Depends(get_token_or_none)) -> bool:
     """
     Verify admin token for sensitive endpoints
     
