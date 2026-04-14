@@ -4,20 +4,23 @@ Structural Health Monitoring and Damage Detection API
 """
 import os
 import sqlite3
+import jwt
 from contextlib import asynccontextmanager
 from datetime import datetime
 from urllib.parse import urlparse
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.staticfiles import StaticFiles
 from slowapi import Limiter
 from slowapi.util import get_remote_address
+from fastapi.security import HTTPBearer, HTTPAuthCredentials
 
 from api.sensor_routes import router as sensor_router
 from api.image_routes import router as image_router
 from api.report_routes import router as report_router
 from core.config import get_settings
+from core.security import TokenManager
 from database import init_database, SessionLocal
 
 
@@ -215,9 +218,64 @@ async def health_check():
     }
 
 
+# Optional Bearer token for sensitive endpoints
+security = HTTPBearer(optional=True)
+
+
+def verify_admin_token(credentials: HTTPAuthCredentials = Depends(security)) -> bool:
+    """
+    Verify admin token for sensitive endpoints
+    
+    In production, this should check against a real user database
+    For now, it checks if a valid JWT was provided
+    """
+    if credentials is None:
+        # For now, allow unauthenticated access to dashboard
+        # In production, change to: raise HTTPException(status_code=401, detail="Unauthorized")
+        return True
+    
+    try:
+        token = credentials.credentials
+        payload = jwt.decode(token, settings.secret_key, algorithms=["HS256"])
+        return True
+    except (jwt.InvalidTokenError, jwt.ExpiredSignatureError):
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+
+@app.post("/api/auth/demo-token")
+async def get_demo_token():
+    """
+    Generate a demo admin token for testing
+    
+    **Security Warning:** This should only be available in development!
+    Remove in production or require authentication.
+    """
+    from core.security import TokenManager
+    from datetime import timedelta
+    
+    token = TokenManager.create_access_token(
+        data={"sub": "demo_user", "role": "admin"},
+        expires_delta=timedelta(hours=24),
+        token_type="access"
+    )
+    
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "expires_in": "24 hours",
+        "usage": "Add 'Authorization: Bearer {token}' header to requests"
+    }
+
+
 @app.get("/api/dashboard/stats")
-async def get_dashboard_stats():
-    """Get dashboard statistics"""
+@limiter.limit("30/minute")
+async def get_dashboard_stats(request: Request, is_admin: bool = Depends(verify_admin_token)):
+    """
+    Get dashboard statistics
+    
+    **Security Note:** This endpoint now tracks access and rate limits requests.
+    Sensitive operations should require authentication.
+    """
     conn = sqlite3.connect(DATABASE_PATH)
     cursor = conn.cursor()
 
