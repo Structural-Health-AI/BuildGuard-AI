@@ -13,7 +13,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from schemas.schemas import ImageAnalysisResponse
-from models.image_model import predict_image_damage
+from models.image_model import predict_image_damage_multiscale
 
 router = APIRouter()
 DATABASE_PATH = "buildguard.db"
@@ -67,8 +67,8 @@ async def analyze_image(request: Request, file: UploadFile = File(...), session_
         with open(file_path, "wb") as f:
             f.write(contents)
 
-        # Get prediction
-        damage_detected, damage_type, confidence, recommendations = predict_image_damage(contents)
+        # Get prediction using multi-scale detection
+        damage_detected, damage_type, confidence, recommendations, details = predict_image_damage_multiscale(contents)
 
         # Save to database with session tracking
         conn = sqlite3.connect(DATABASE_PATH)
@@ -91,15 +91,19 @@ async def analyze_image(request: Request, file: UploadFile = File(...), session_
         conn.commit()
         conn.close()
 
-        return ImageAnalysisResponse(
-            id=analysis_id,
-            damage_detected=damage_detected,
-            damage_type=damage_type,
-            confidence=confidence,
-            timestamp=datetime.now(),
-            image_path=f"/uploads/{unique_filename}",
-            recommendations=recommendations
-        )
+        # Prepare response with multi-scale details
+        response_data = {
+            "id": analysis_id,
+            "damage_detected": damage_detected,
+            "damage_type": damage_type,
+            "confidence": confidence,
+            "timestamp": datetime.now(),
+            "image_path": f"/uploads/{unique_filename}",
+            "recommendations": recommendations,
+            "details": details  # Include multi-scale details (tiles, small_cracks_detected, etc)
+        }
+        
+        return response_data
 
     except HTTPException:
         raise
