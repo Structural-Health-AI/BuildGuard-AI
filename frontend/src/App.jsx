@@ -51,9 +51,10 @@ function AppShell() {
           borderRight: `1px solid ${T.border}`,
         }}
       >
-        {/* Logo area */}
+        {/* Logo area - Clickable */}
         <div
-          className={`flex items-center gap-2.5 px-4 h-16 ${sidebarCollapsed ? 'justify-center' : ''}`}
+          onClick={() => navigate('/')}
+          className={`flex items-center gap-2.5 px-4 h-16 cursor-pointer transition-opacity hover:opacity-75 ${sidebarCollapsed ? 'justify-center' : ''}`}
           style={{ borderBottom: `1px solid ${T.borderLight}` }}
         >
           <div
@@ -158,7 +159,13 @@ function AppShell() {
           borderBottom: `1px solid ${T.borderLight}`,
         }}
       >
-        <div className="flex items-center gap-2">
+        <div 
+          onClick={() => {
+            navigate('/')
+            setMobileMenuOpen(false)
+          }}
+          className="flex items-center gap-2 cursor-pointer transition-opacity hover:opacity-75"
+        >
           <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: T.charcoal }}>
             <Shield className="h-4 w-4" style={{ color: T.white }} />
           </div>
