@@ -399,6 +399,76 @@ async def get_dashboard_stats(request: Request, is_admin: bool = Depends(verify_
     }
 
 
+@app.get("/api/dashboard/trend")
+@limiter.limit("30/minute")
+async def get_dashboard_trend(request: Request, session_id: str = None):
+    """
+    Get trend data (last 6 months) for dashboard charts
+    Aggregates sensor predictions by damage level
+    """
+    if not session_id:
+        session_id = request.query_params.get("session_id")
+    
+    conn = sqlite3.connect(DATABASE_PATH)
+    cursor = conn.cursor()
+
+    # Get trend data for last 6 months grouped by month and damage level
+    if session_id:
+        query = """
+            SELECT 
+                strftime('%Y-%m', created_at) as month,
+                damage_level,
+                COUNT(*) as count
+            FROM sensor_predictions
+            WHERE session_id = ?
+            AND created_at >= datetime('now', '-6 months')
+            GROUP BY strftime('%Y-%m', created_at), damage_level
+            ORDER BY month DESC
+        """
+        cursor.execute(query, [session_id])
+    else:
+        query = """
+            SELECT 
+                strftime('%Y-%m', created_at) as month,
+                damage_level,
+                COUNT(*) as count
+            FROM sensor_predictions
+            WHERE created_at >= datetime('now', '-6 months')
+            GROUP BY strftime('%Y-%m', created_at), damage_level
+            ORDER BY month DESC
+        """
+        cursor.execute(query)
+    
+    rows = cursor.fetchall()
+    conn.close()
+
+    # Process data into charts format
+    months_dict = {}
+    for month, damage_level, count in rows:
+        if month not in months_dict:
+            months_dict[month] = {'month': month, 'healthy': 0, 'warning': 0, 'critical': 0}
+        
+        # Map damage levels to chart categories
+        if damage_level == 'healthy':
+            months_dict[month]['healthy'] = count
+        elif damage_level == 'minor_damage':
+            months_dict[month]['warning'] = count
+        elif damage_level == 'severe_damage':
+            months_dict[month]['critical'] = count
+
+    # Convert to list and sort by month
+    trend_data = sorted(months_dict.values(), key=lambda x: x['month'])
+    
+    # If no data, return empty list
+    if not trend_data:
+        trend_data = []
+
+    return {
+        "trend_data": trend_data,
+        "user_session": session_id if session_id else "global"
+    }
+
+
 if __name__ == "__main__":
     import uvicorn
     import socket
