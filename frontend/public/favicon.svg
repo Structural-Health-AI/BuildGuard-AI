@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <defs>
+    <style>
+      svg { background: #1A1A2E; }
+      .shield { stroke: #FFFFFF; }
+      .accent { stroke: #C2644A; }
+    </style>
+  </defs>
+  <!-- Shield shape -->
+  <path class="shield" d="M 16 2 L 6 6 L 6 14 C 6 22 16 28 16 28 C 16 28 26 22 26 14 L 26 6 Z" fill="#1A1A2E"/>
+  <!-- Checkmark inside -->
+  <g class="accent" stroke-width="2.5">
+    <polyline points="10 16 14 20 22 12" fill="none"/>
+  </g>
+</svg>
