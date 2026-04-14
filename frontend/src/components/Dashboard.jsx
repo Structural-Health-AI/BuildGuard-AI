@@ -56,26 +56,22 @@ const itemVariants = {
 
 const CHART_COLORS = ['#059669', '#D97706', '#DC2626']
 
-const trendData = [
-  { month: 'Oct', healthy: 42, warning: 8, critical: 2 },
-  { month: 'Nov', healthy: 48, warning: 12, critical: 3 },
-  { month: 'Dec', healthy: 55, warning: 10, critical: 1 },
-  { month: 'Jan', healthy: 50, warning: 15, critical: 4 },
-  { month: 'Feb', healthy: 62, warning: 9, critical: 2 },
-  { month: 'Mar', healthy: 58, warning: 11, critical: 3 },
-]
-
 function Dashboard() {
   const [stats, setStats] = useState(null)
+  const [trendData, setTrendData] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [sessionId] = useState(getSessionId())
 
   useEffect(() => {
     fetchStats()
+    fetchTrendData()
     
     // Auto-refresh dashboard every 10 seconds
-    const interval = setInterval(fetchStats, 10000)
+    const interval = setInterval(() => {
+      fetchStats()
+      fetchTrendData()
+    }, 10000)
     return () => clearInterval(interval)
   }, [sessionId])
 
@@ -95,6 +91,28 @@ function Dashboard() {
       })
     } finally { 
       if (loading) setLoading(false) 
+    }
+  }
+
+  const fetchTrendData = async () => {
+    try {
+      const response = await api.getDashboardTrend(sessionId)
+      if (response.data.trend_data && response.data.trend_data.length > 0) {
+        setTrendData(response.data.trend_data)
+      } else {
+        // Fallback to default data if no trend data available
+        setTrendData([
+          { month: 'Oct', healthy: 0, warning: 0, critical: 0 },
+          { month: 'Nov', healthy: 0, warning: 0, critical: 0 },
+          { month: 'Dec', healthy: 0, warning: 0, critical: 0 },
+          { month: 'Jan', healthy: 0, warning: 0, critical: 0 },
+          { month: 'Feb', healthy: 0, warning: 0, critical: 0 },
+          { month: 'Mar', healthy: 0, warning: 0, critical: 0 },
+        ])
+      }
+    } catch (err) {
+      console.error('Failed to load trend data:', err)
+      // Keep existing data on error
     }
   }
 

@@ -11,6 +11,13 @@ export const api = {
     return axios.get(url)
   },
 
+  getDashboardTrend: (sessionId) => {
+    const url = sessionId
+      ? `${API_BASE}/dashboard/trend?session_id=${encodeURIComponent(sessionId)}`
+      : `${API_BASE}/dashboard/trend`
+    return axios.get(url)
+  },
+
   // Sensor Analysis
   predictSensor: (data, sessionId) => {
     const url = sessionId
