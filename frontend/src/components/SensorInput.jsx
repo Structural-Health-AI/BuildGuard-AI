@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Activity, AlertTriangle, CheckCircle, AlertCircle, Loader2, Thermometer, Gauge, Brain, ArrowRight } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import api from '../api'
+import { getSessionId } from '../utils/sessionManager'
 
 const T = {
   white: '#FFFFFF', offWhite: '#F8F7F5', charcoal: '#1A1A2E',
@@ -40,13 +41,14 @@ function SensorInput() {
     }
     try {
       setLoading(true); setError(null)
+      const sessionId = getSessionId()
       const payload = {
         accel_x: parseFloat(formData.accel_x), accel_y: parseFloat(formData.accel_y),
         accel_z: parseFloat(formData.accel_z), strain: parseFloat(formData.strain),
         temperature: parseFloat(formData.temperature),
         building_name: formData.building_name || null, location: formData.location || null
       }
-      const response = await api.predictSensor(payload)
+      const response = await api.predictSensor(payload, sessionId)
       setResult(response.data)
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to analyze sensor data')

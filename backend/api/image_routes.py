@@ -23,7 +23,7 @@ limiter = Limiter(key_func=get_remote_address)
 
 @router.post("/analyze", response_model=ImageAnalysisResponse)
 @limiter.limit("10/minute")
-async def analyze_image(request: Request, file: UploadFile = File(...)):
+async def analyze_image(request: Request, file: UploadFile = File(...), session_id: str = None):
     """
     Analyze an uploaded image for structural damage
 
@@ -35,7 +35,12 @@ async def analyze_image(request: Request, file: UploadFile = File(...)):
     
     **Rate Limit:** 10 requests per minute per IP
     **Max File Size:** 10MB
+    **session_id**: (Optional) User session ID for per-user analytics
     """
+    # Get session_id from query parameter if not provided
+    if not session_id:
+        session_id = request.query_params.get("session_id")
+    
     # Validate file type
     allowed_types = ["image/jpeg", "image/png", "image/jpg", "image/webp"]
     if file.content_type not in allowed_types:
@@ -65,15 +70,16 @@ async def analyze_image(request: Request, file: UploadFile = File(...)):
         # Get prediction
         damage_detected, damage_type, confidence, recommendations = predict_image_damage(contents)
 
-        # Save to database
+        # Save to database with session tracking
         conn = sqlite3.connect(DATABASE_PATH)
         cursor = conn.cursor()
 
         cursor.execute("""
             INSERT INTO image_analyses
-            (image_path, damage_detected, damage_type, confidence, recommendations)
-            VALUES (?, ?, ?, ?, ?)
+            (session_id, image_path, damage_detected, damage_type, confidence, recommendations)
+            VALUES (?, ?, ?, ?, ?, ?)
         """, (
+            session_id,
             file_path,
             1 if damage_detected else 0,
             damage_type,

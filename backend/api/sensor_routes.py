@@ -20,17 +20,22 @@ limiter = Limiter(key_func=get_remote_address)
 
 @router.post("/predict", response_model=SensorPredictionResponse)
 @limiter.limit("20/minute")
-async def predict_from_sensors(request: Request, data: SensorDataInput):
+async def predict_from_sensors(request: Request, data: SensorDataInput, session_id: str = None):
     """
     Analyze sensor data and predict structural health
 
     - **accel_x, accel_y, accel_z**: Accelerometer readings (m/s²)
     - **strain**: Strain gauge reading (microstrain)
     - **temperature**: Temperature (°C)
+    - **session_id**: (Optional) User session ID for per-user analytics
     
     **Rate Limit:** 20 requests per minute per IP
     """
     try:
+        # Get session_id from query parameter if not in body
+        if not session_id:
+            session_id = request.query_params.get("session_id")
+        
         # Get prediction from model
         damage_level, confidence, recommendations = predict_sensor_health(
             accel_x=data.accel_x,
@@ -40,17 +45,17 @@ async def predict_from_sensors(request: Request, data: SensorDataInput):
             temperature=data.temperature
         )
 
-        # Save to database
+        # Save to database with session tracking
         conn = sqlite3.connect(DATABASE_PATH)
         cursor = conn.cursor()
 
         cursor.execute("""
             INSERT INTO sensor_predictions
-            (accel_x, accel_y, accel_z, strain, temperature, building_name, location,
+            (session_id, accel_x, accel_y, accel_z, strain, temperature, building_name, location,
              damage_level, confidence, recommendations)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
-            data.accel_x, data.accel_y, data.accel_z, data.strain, data.temperature,
+            session_id, data.accel_x, data.accel_y, data.accel_z, data.strain, data.temperature,
             data.building_name, data.location, damage_level, confidence,
             json.dumps(recommendations)
         ))
