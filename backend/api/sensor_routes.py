@@ -5,24 +5,30 @@ Endpoints for sensor-based structural health prediction
 import sqlite3
 import json
 from datetime import datetime
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from typing import List
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from schemas.schemas import SensorDataInput, SensorPredictionResponse, DamageLevel
 from models.sensor_model import predict_sensor_health
 
 router = APIRouter()
 DATABASE_PATH = "buildguard.db"
+limiter = Limiter(key_func=get_remote_address)
 
 
 @router.post("/predict", response_model=SensorPredictionResponse)
-async def predict_from_sensors(data: SensorDataInput):
+@limiter.limit("20/minute")
+async def predict_from_sensors(request: Request, data: SensorDataInput):
     """
     Analyze sensor data and predict structural health
 
     - **accel_x, accel_y, accel_z**: Accelerometer readings (m/s²)
     - **strain**: Strain gauge reading (microstrain)
     - **temperature**: Temperature (°C)
+    
+    **Rate Limit:** 20 requests per minute per IP
     """
     try:
         # Get prediction from model

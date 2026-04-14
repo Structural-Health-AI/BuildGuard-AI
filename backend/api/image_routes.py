@@ -7,8 +7,10 @@ import sqlite3
 import json
 import uuid
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, HTTPException, UploadFile, File, Request
 from typing import List
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from schemas.schemas import ImageAnalysisResponse
 from models.image_model import predict_image_damage
@@ -16,10 +18,12 @@ from models.image_model import predict_image_damage
 router = APIRouter()
 DATABASE_PATH = "buildguard.db"
 UPLOAD_DIR = "uploads"
+limiter = Limiter(key_func=get_remote_address)
 
 
 @router.post("/analyze", response_model=ImageAnalysisResponse)
-async def analyze_image(file: UploadFile = File(...)):
+@limiter.limit("10/minute")
+async def analyze_image(request: Request, file: UploadFile = File(...)):
     """
     Analyze an uploaded image for structural damage
 
@@ -28,6 +32,9 @@ async def analyze_image(file: UploadFile = File(...)):
     - Spalling
     - Corrosion
     - Structural deformation
+    
+    **Rate Limit:** 10 requests per minute per IP
+    **Max File Size:** 10MB
     """
     # Validate file type
     allowed_types = ["image/jpeg", "image/png", "image/jpg", "image/webp"]
