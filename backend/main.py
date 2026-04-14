@@ -223,12 +223,17 @@ async def health_check():
 security = HTTPBearer()
 
 
-async def get_token_or_none(credentials: HTTPAuthorizationCredentials = Depends(security)) -> HTTPAuthorizationCredentials | None:
+async def get_token_or_none(request: Request) -> HTTPAuthorizationCredentials | None:
     """
-    Get token from request, return None if not provided
-    This dependency makes the token optional
+    Extract bearer token from request, return None if not provided
+    This makes the token completely optional
     """
-    return credentials
+    auth = request.headers.get("Authorization")
+    if auth and auth.startswith("Bearer "):
+        # Extract and validate the token format
+        credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=auth[7:])
+        return credentials
+    return None
 
 
 def verify_admin_token(credentials: HTTPAuthorizationCredentials | None = Depends(get_token_or_none)) -> bool:
@@ -236,10 +241,10 @@ def verify_admin_token(credentials: HTTPAuthorizationCredentials | None = Depend
     Verify admin token for sensitive endpoints
     
     In production, this should check against a real user database
-    For now, it checks if a valid JWT was provided
+    For now, it checks if a valid JWT was provided, but allows access without one
     """
     if credentials is None:
-        # For now, allow unauthenticated access to dashboard
+        # Allow unauthenticated access to dashboard
         # In production, change to: raise HTTPException(status_code=401, detail="Unauthorized")
         return True
     
