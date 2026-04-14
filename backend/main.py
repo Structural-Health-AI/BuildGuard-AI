@@ -14,7 +14,8 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.staticfiles import StaticFiles
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-from fastapi.security import HTTPBearer, HTTPAuthCredentials
+from fastapi.security import HTTPBearer
+from fastapi.security.http import HTTPAuthenticationCredentials
 
 from api.sensor_routes import router as sensor_router
 from api.image_routes import router as image_router
@@ -222,7 +223,7 @@ async def health_check():
 security = HTTPBearer(optional=True)
 
 
-def verify_admin_token(credentials: HTTPAuthCredentials = Depends(security)) -> bool:
+def verify_admin_token(credentials: HTTPAuthenticationCredentials = Depends(security)) -> bool:
     """
     Verify admin token for sensitive endpoints
     
