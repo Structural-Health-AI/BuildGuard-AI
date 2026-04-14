@@ -6,7 +6,7 @@ import os
 import sqlite3
 import jwt
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 from urllib.parse import urlparse
 from fastapi import FastAPI, Request, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -250,9 +250,6 @@ async def get_demo_token():
     **Security Warning:** This should only be available in development!
     Remove in production or require authentication.
     """
-    from core.security import TokenManager
-    from datetime import timedelta
-    
     token = TokenManager.create_access_token(
         data={"sub": "demo_user", "role": "admin"},
         expires_delta=timedelta(hours=24),
