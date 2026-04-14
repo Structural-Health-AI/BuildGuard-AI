@@ -22,7 +22,7 @@ const itemVariants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 
 
 function SensorInput() {
   const [formData, setFormData] = useState({
-    accel_x: '', accel_y: '', accel_z: '9.8', strain: '', temperature: '',
+    accel_x: '', accel_y: '', accel_z: '', strain: '', temperature: '',
     building_name: '', location: ''
   })
   const [result, setResult] = useState(null)
