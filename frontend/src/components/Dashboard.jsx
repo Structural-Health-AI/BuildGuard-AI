@@ -239,7 +239,14 @@ function Dashboard() {
           <h3 className="text-[10px] font-semibold uppercase tracking-[0.15em] mb-6" style={{ color: T.terra }}>Monthly Trend</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={trendData}>
+              <AreaChart data={trendData && trendData.length > 0 ? trendData : [
+                { month: 'Oct', healthy: 0, warning: 0, critical: 0 },
+                { month: 'Nov', healthy: 0, warning: 0, critical: 0 },
+                { month: 'Dec', healthy: 0, warning: 0, critical: 0 },
+                { month: 'Jan', healthy: 0, warning: 0, critical: 0 },
+                { month: 'Feb', healthy: 0, warning: 0, critical: 0 },
+                { month: 'Mar', healthy: 0, warning: 0, critical: 0 },
+              ]}>
                 <defs>
                   <linearGradient id="gradientHealthy" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#059669" stopOpacity={0.15} />
