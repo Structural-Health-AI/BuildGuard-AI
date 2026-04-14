@@ -50,10 +50,12 @@ def init_legacy_database():
     conn = sqlite3.connect(DATABASE_PATH)
     cursor = conn.cursor()
 
-    # Sensor predictions table
+    # Sensor predictions table with user tracking
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS sensor_predictions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT,
+            session_id TEXT,
             accel_x REAL NOT NULL,
             accel_y REAL NOT NULL,
             accel_z REAL NOT NULL,
@@ -68,10 +70,12 @@ def init_legacy_database():
         )
     """)
 
-    # Image analyses table
+    # Image analyses table with user tracking
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS image_analyses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT,
+            session_id TEXT,
             image_path TEXT NOT NULL,
             damage_detected INTEGER NOT NULL,
             damage_type TEXT,
@@ -85,6 +89,8 @@ def init_legacy_database():
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS reports (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT,
+            session_id TEXT,
             building_name TEXT NOT NULL,
             location TEXT NOT NULL,
             inspector_name TEXT NOT NULL,
@@ -98,6 +104,27 @@ def init_legacy_database():
             FOREIGN KEY (image_analysis_id) REFERENCES image_analyses(id)
         )
     """)
+
+    # Add user_id and session_id columns to existing tables if they don't exist
+    try:
+        cursor.execute("ALTER TABLE sensor_predictions ADD COLUMN user_id TEXT")
+    except:
+        pass
+    
+    try:
+        cursor.execute("ALTER TABLE sensor_predictions ADD COLUMN session_id TEXT")
+    except:
+        pass
+    
+    try:
+        cursor.execute("ALTER TABLE image_analyses ADD COLUMN user_id TEXT")
+    except:
+        pass
+    
+    try:
+        cursor.execute("ALTER TABLE image_analyses ADD COLUMN session_id TEXT")
+    except:
+        pass
 
     conn.commit()
     conn.close()
@@ -280,48 +307,80 @@ async def get_demo_token():
 
 @app.get("/api/dashboard/stats")
 @limiter.limit("30/minute")
-async def get_dashboard_stats(request: Request, is_admin: bool = Depends(verify_admin_token)):
+async def get_dashboard_stats(request: Request, is_admin: bool = Depends(verify_admin_token), session_id: str = None):
     """
-    Get dashboard statistics
+    Get dashboard statistics filtered by user session
     
-    **Security Note:** This endpoint now tracks access and rate limits requests.
-    Sensitive operations should require authentication.
+    **Security Note:** This endpoint now shows only current user's data and rate limits requests.
+    Pass session_id as query parameter to filter by user.
     """
+    # Get session_id from query parameter if not provided
+    if not session_id:
+        session_id = request.query_params.get("session_id")
+    
     conn = sqlite3.connect(DATABASE_PATH)
     cursor = conn.cursor()
 
+    # Build WHERE clause for filtering by session/user
+    where_clause = ""
+    params = []
+    if session_id:
+        where_clause = "WHERE session_id = ?"
+        params = [session_id]
+
     # Get counts
-    cursor.execute("SELECT COUNT(*) FROM reports")
+    query = f"SELECT COUNT(*) FROM reports {where_clause}"
+    cursor.execute(query, params)
     total_reports = cursor.fetchone()[0]
 
-    cursor.execute("SELECT COUNT(*) FROM sensor_predictions")
+    query = f"SELECT COUNT(*) FROM sensor_predictions {where_clause}"
+    cursor.execute(query, params)
     total_sensor = cursor.fetchone()[0]
 
-    cursor.execute("SELECT COUNT(*) FROM image_analyses")
+    query = f"SELECT COUNT(*) FROM image_analyses {where_clause}"
+    cursor.execute(query, params)
     total_image = cursor.fetchone()[0]
 
     # Get damage level counts from sensor predictions
-    cursor.execute("SELECT COUNT(*) FROM sensor_predictions WHERE damage_level = 'healthy'")
+    query = f"SELECT COUNT(*) FROM sensor_predictions {where_clause} AND damage_level = 'healthy'"
+    cursor.execute(query, params)
     healthy = cursor.fetchone()[0]
 
-    cursor.execute("SELECT COUNT(*) FROM sensor_predictions WHERE damage_level = 'minor_damage'")
+    query = f"SELECT COUNT(*) FROM sensor_predictions {where_clause} AND damage_level = 'minor_damage'"
+    cursor.execute(query, params)
     minor = cursor.fetchone()[0]
 
-    cursor.execute("SELECT COUNT(*) FROM sensor_predictions WHERE damage_level = 'severe_damage'")
+    query = f"SELECT COUNT(*) FROM sensor_predictions {where_clause} AND damage_level = 'severe_damage'"
+    cursor.execute(query, params)
     severe = cursor.fetchone()[0]
 
     # Get recent analyses
-    cursor.execute("""
-        SELECT 'sensor' as type, damage_level as status, created_at
-        FROM sensor_predictions
-        UNION ALL
-        SELECT 'image' as type,
-               CASE WHEN damage_detected = 1 THEN 'damage_detected' ELSE 'no_damage' END as status,
-               created_at
-        FROM image_analyses
-        ORDER BY created_at DESC
-        LIMIT 10
-    """)
+    if session_id:
+        cursor.execute("""
+            SELECT 'sensor' as type, damage_level as status, created_at
+            FROM sensor_predictions
+            WHERE session_id = ?
+            UNION ALL
+            SELECT 'image' as type,
+                   CASE WHEN damage_detected = 1 THEN 'damage_detected' ELSE 'no_damage' END as status,
+                   created_at
+            FROM image_analyses
+            WHERE session_id = ?
+            ORDER BY created_at DESC
+            LIMIT 10
+        """, [session_id, session_id])
+    else:
+        cursor.execute("""
+            SELECT 'sensor' as type, damage_level as status, created_at
+            FROM sensor_predictions
+            UNION ALL
+            SELECT 'image' as type,
+                   CASE WHEN damage_detected = 1 THEN 'damage_detected' ELSE 'no_damage' END as status,
+                   created_at
+            FROM image_analyses
+            ORDER BY created_at DESC
+            LIMIT 10
+        """)
     recent = cursor.fetchall()
 
     conn.close()
@@ -335,7 +394,8 @@ async def get_dashboard_stats(request: Request, is_admin: bool = Depends(verify_
         "severe_damage_count": severe,
         "recent_analyses": [
             {"type": r[0], "status": r[1], "created_at": r[2]} for r in recent
-        ]
+        ],
+        "user_session": session_id if session_id else "global"
     }
 
 

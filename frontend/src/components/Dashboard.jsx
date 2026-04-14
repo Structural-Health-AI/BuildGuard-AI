@@ -5,6 +5,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, AreaChart, Area, XAxis, YAxis
 import { motion } from 'framer-motion'
 import { SkeletonCard, SkeletonChart } from './ui/SkeletonLoader'
 import api from '../api'
+import { getSessionId } from '../utils/sessionManager'
 
 /* ═══════════════════════════════════════════
    DESIGN TOKENS
@@ -68,29 +69,33 @@ function Dashboard() {
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [sessionId] = useState(getSessionId())
 
-  useEffect(() => { fetchStats() }, [])
+  useEffect(() => {
+    fetchStats()
+    
+    // Auto-refresh dashboard every 10 seconds
+    const interval = setInterval(fetchStats, 10000)
+    return () => clearInterval(interval)
+  }, [sessionId])
 
   const fetchStats = async () => {
     try {
-      setLoading(true)
-      const response = await api.getDashboardStats()
+      setLoading(false)  // Don't show loading spinner on refresh
+      const response = await api.getDashboardStats(sessionId)
       setStats(response.data)
       setError(null)
     } catch (err) {
       setError('Failed to load dashboard statistics')
       setStats({
-        total_reports: 24, total_sensor_analyses: 156, total_image_analyses: 89,
-        healthy_count: 18, minor_damage_count: 4, severe_damage_count: 2,
-        recent_analyses: [
-          { type: 'sensor', status: 'healthy', building_name: 'Central Tower', created_at: new Date().toISOString() },
-          { type: 'sensor', status: 'minor_damage', building_name: 'Bridge Alpha', created_at: new Date(Date.now()-3600000).toISOString() },
-          { type: 'image', status: 'healthy', building_name: 'Parking Deck B', created_at: new Date(Date.now()-7200000).toISOString() },
-          { type: 'sensor', status: 'severe_damage', building_name: 'Highway Overpass', created_at: new Date(Date.now()-10800000).toISOString() },
-          { type: 'image', status: 'healthy', building_name: 'Office Complex C', created_at: new Date(Date.now()-14400000).toISOString() },
-        ]
+        total_reports: 0, total_sensor_analyses: 0, total_image_analyses: 0,
+        healthy_count: 0, minor_damage_count: 0, severe_damage_count: 0,
+        recent_analyses: [],
+        user_session: sessionId
       })
-    } finally { setLoading(false) }
+    } finally { 
+      if (loading) setLoading(false) 
+    }
   }
 
   const totalAnalyses = useCountUp(stats ? (stats.total_sensor_analyses + stats.total_image_analyses) : 0)

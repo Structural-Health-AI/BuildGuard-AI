@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import { Upload, Camera, AlertTriangle, CheckCircle, AlertCircle, X, Loader2, Brain, Scan, ArrowRight, ImageIcon } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import api from '../api'
+import { getSessionId } from '../utils/sessionManager'
 
 const T = {
   white: '#FFFFFF', offWhite: '#F8F7F5', charcoal: '#1A1A2E',
@@ -41,7 +42,8 @@ function ImageUpload() {
     if (!selectedFile) return
     try {
       setLoading(true); setError(null)
-      const response = await api.analyzeImage(selectedFile)
+      const sessionId = getSessionId()
+      const response = await api.analyzeImage(selectedFile, sessionId)
       setResult(response.data)
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to analyze image')
