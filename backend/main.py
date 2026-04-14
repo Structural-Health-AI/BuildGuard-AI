@@ -11,6 +11,8 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.staticfiles import StaticFiles
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from api.sensor_routes import router as sensor_router
 from api.image_routes import router as image_router
@@ -134,6 +136,11 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+
+# Initialize rate limiter
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(Exception, lambda request, exc: {"detail": "Rate limit exceeded"})
 
 # ============= SECURITY MIDDLEWARE =============
 
