@@ -238,12 +238,19 @@ async def root():
 
 @app.get("/api/health")
 async def health_check():
-    """Health check endpoint"""
+    """Health check endpoint for production monitoring"""
     return {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
-        "database": "connected"
+        "database": "connected",
+        "version": "1.0.0"
     }
+
+
+@app.get("/health")
+async def simple_health():
+    """Simple health check endpoint (for Docker/uptime monitoring)"""
+    return {"status": "ok"}
 
 
 # Optional Bearer token for sensitive endpoints

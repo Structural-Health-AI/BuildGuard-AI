@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: buildguard-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=production
+      - DATABASE_URL=sqlite:///./buildguard.db
+      - ALLOWED_ORIGINS=http://localhost:3000,https://www.build-guard.app
+      - CORS_ORIGINS=http://localhost:3000,https://www.build-guard.app
+    volumes:
+      - ./backend/uploads:/app/backend/uploads
+      - ./backend/saved_models:/app/backend/saved_models
+      - ./backend/buildguard.db:/app/backend/buildguard.db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: buildguard-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    environment:
+      - REACT_APP_API_URL=http://backend:8000/api
+
+volumes:
+  backend_uploads:
+  backend_models:
+  backend_db:

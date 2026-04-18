@@ -1,0 +1,12 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+.vscode
+__pycache__
+*.pyc
+.env.local
+.DS_Store
+notebooks
+temp_data
+*.log

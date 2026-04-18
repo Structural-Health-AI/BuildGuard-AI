@@ -3,6 +3,7 @@ Database configuration and session management
 """
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.pool import StaticPool
 import os
 
 from core.config import get_settings
@@ -10,12 +11,25 @@ from models.user_model import Base
 
 settings = get_settings()
 
-# Create database engine
-engine = create_engine(
-    settings.database_url,
-    connect_args={"check_same_thread": False} if "sqlite" in settings.database_url else {},
-    pool_pre_ping=True,  # Verify connections before using
-)
+# Determine connection arguments based on database type
+connect_args = {}
+if "sqlite" in settings.database_url:
+    # SQLite settings
+    connect_args = {"check_same_thread": False}
+    engine = create_engine(
+        settings.database_url,
+        connect_args=connect_args,
+        poolclass=StaticPool,
+    )
+else:
+    # PostgreSQL (Supabase) settings
+    engine = create_engine(
+        settings.database_url,
+        pool_pre_ping=True,  # Verify connections before using
+        echo=False,
+        pool_size=10,
+        max_overflow=20,
+    )
 
 # Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -35,7 +49,7 @@ def init_database():
     Base.metadata.create_all(bind=engine)
 
 
-# Enable foreign keys for SQLite
+# Enable foreign keys for SQLite only
 def _set_sqlite_pragma(dbapi_conn, connection_record):
     cursor = dbapi_conn.cursor()
     cursor.execute("PRAGMA foreign_keys=ON")

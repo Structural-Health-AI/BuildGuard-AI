@@ -18,7 +18,12 @@ class Settings(BaseSettings):
     email_verification_token_expire_hours: int = 48
 
     # Database
-    database_url: str = "sqlite:///./buildguard.db"
+    # For development: sqlite:///./buildguard.db
+    # For production with Supabase: postgresql://user:password@host:5432/database
+    database_url: str = os.getenv(
+        "DATABASE_URL",
+        "sqlite:///./buildguard.db"
+    )
 
     # Email (optional, for password reset and verification)
     smtp_server: str = ""
