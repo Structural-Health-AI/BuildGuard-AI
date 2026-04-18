@@ -2,6 +2,7 @@
 Report Management API Routes
 Endpoints for creating and managing structural health reports
 """
+import os
 import sqlite3
 import json
 from datetime import datetime
@@ -9,9 +10,17 @@ from fastapi import APIRouter, HTTPException
 from typing import List
 
 from schemas.schemas import ReportCreate, ReportResponse, ReportListResponse, DamageLevel
+from core.config import get_settings
 
 router = APIRouter()
-DATABASE_PATH = "buildguard.db"
+settings = get_settings()
+
+# Get database path from settings or use default
+if "sqlite" in settings.database_url:
+    DATABASE_PATH = os.path.join(os.path.dirname(__file__), "..", "buildguard.db")
+else:
+    # For PostgreSQL, we'll use SQLAlchemy instead of sqlite3
+    DATABASE_PATH = None
 
 
 def determine_overall_status(sensor_prediction_id: int = None, image_analysis_id: int = None) -> str:

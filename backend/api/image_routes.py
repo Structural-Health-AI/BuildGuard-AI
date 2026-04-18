@@ -14,9 +14,18 @@ from slowapi.util import get_remote_address
 
 from schemas.schemas import ImageAnalysisResponse
 from models.image_model import predict_image_damage_multiscale
+from core.config import get_settings
 
 router = APIRouter()
-DATABASE_PATH = "buildguard.db"
+settings = get_settings()
+
+# Get database path from settings or use default
+if "sqlite" in settings.database_url:
+    DATABASE_PATH = os.path.join(os.path.dirname(__file__), "..", "buildguard.db")
+else:
+    # For PostgreSQL, we'll use SQLAlchemy instead of sqlite3
+    DATABASE_PATH = None
+
 UPLOAD_DIR = "uploads"
 limiter = Limiter(key_func=get_remote_address)
 
