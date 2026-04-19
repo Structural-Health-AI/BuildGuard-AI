@@ -8,15 +8,17 @@
 ## INCIDENT SUMMARY
 
 ### What Happened
-During post-cleanup repository audit, discovered real credentials in public git history (origin/main):
-- **Supabase Database Password:** `Dipendra@159357`
-- **Django/FastAPI SECRET_KEY:** `e9EJMSt9OiwiNE-JgB7hvgrtabxWuvmymohdHn39zUs`
-- **Supabase Project ID:** `msoahnrvdwyclxkcbiin`
+During post-cleanup repository audit, discovered real credentials in public git history (origin/main). These have now been **REMOVED AND SANITIZED** using git-filter-repo.
 
-### Where They Are
+**Original Exposure Details (NOW REDACTED IN GIT HISTORY):**
+- Supabase Database Password was exposed
+- Django/FastAPI SECRET_KEY was exposed
+- Supabase Project ID was exposed
+
+### Where They Were
 - Location: Deleted documentation files in old commits (SECURITY_AUDIT_SUMMARY.md, etc.)
-- Visibility: ✅ PUBLICLY VISIBLE on GitHub (origin/main branch)
-- Access: Anyone can clone repository and see credentials in history
+- Status: ✅ **CREDENTIALS NOW REMOVED FROM GIT HISTORY** - git-filter-repo has sanitized all commits
+- Repository: GitHub (origin/main) requires force-push to reflect cleaned history
 
 ### Why This Happened
 Old documentation files contained hardcoded examples with real credentials instead of placeholders. Files were deleted in recent cleanup, but git history retains them.
