@@ -1,129 +1,87 @@
-# BuildGuard-AI Production Deployment Guide
+# BuildGuard-AI Production Deployment
 
-## Problem: Backend Not Running
+## Docker Deployment
 
-When you manually start the backend, it only runs while the terminal is open. In production, the server must **run 24/7 automatically**.
-
----
-
-## Solution 1: Docker (Recommended) 🐳
-
-### For Local Testing
+### Local Testing
 
 ```bash
-# Build and run with Docker Compose
 docker-compose up -d
-
-# View logs
 docker-compose logs -f backend
 docker-compose logs -f frontend
-
-# Stop
 docker-compose down
 ```
 
-### For Production Deployment
+### Production Server
 
-#### **On Linux Server (Ubuntu/AWS/DigitalOcean)**
+1. SSH into your server:
+```bash
+ssh user@your-server-ip
+```
 
-1. **SSH into your server:**
-   ```bash
-   ssh user@your-server-ip
-   ```
+2. Install Docker:
+```bash
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+sudo usermod -aG docker $USER
+```
 
-2. **Install Docker:**
-   ```bash
-   curl -fsSL https://get.docker.com -o get-docker.sh
-   sudo sh get-docker.sh
-   sudo usermod -aG docker $USER
-   ```
+3. Clone the project:
+```bash
+git clone https://github.com/Structural-Health-AI/BuildGuard-AI.git
+cd BuildGuard-AI
+```
 
-3. **Clone your project:**
-   ```bash
-   git clone https://github.com/Structural-Health-AI/BuildGuard-AI.git
-   cd BuildGuard-AI
-   ```
+4. Set environment variables:
+```bash
+cat > .env << EOF
+ENVIRONMENT=production
+ALLOWED_ORIGINS=https://www.build-guard.app
+DATABASE_URL=sqlite:///./buildguard.db
+EOF
+```
 
-4. **Set environment variables:**
-   ```bash
-   cat > .env << EOF
-   ENVIRONMENT=production
-   ALLOWED_ORIGINS=https://www.build-guard.app
-   CORS_ORIGINS=https://www.build-guard.app
-   DATABASE_URL=sqlite:///./buildguard.db
-   EOF
-   ```
+5. Start services:
+```bash
+docker-compose up -d
+systemctl enable docker
+```
 
-5. **Start with Docker Compose:**
-   ```bash
-   docker-compose up -d
-   ```
+6. Monitor:
+```bash
+docker ps
+docker logs -f buildguard-backend
+docker logs -f buildguard-frontend
+```
 
-6. **Set up auto-restart on server reboot:**
-   ```bash
-   # Docker containers restart automatically with restart: unless-stopped
-   # But also enable Docker daemon to start on boot:
-   sudo systemctl enable docker
-   ```
-
-7. **View running containers:**
-   ```bash
-   docker ps
-   docker logs -f buildguard-backend
-   docker logs -f buildguard-frontend
-   ```
-
----
-
-## Solution 2: PM2 (Easier for Existing Setup)
+## PM2 Deployment
 
 ### Install PM2
 ```bash
 npm install -g pm2
 ```
 
-### Start Backend with PM2
+### Start Backend
 ```bash
 cd backend
 pm2 start main.py --name "buildguard-backend" --interpreter python
-
-# Auto-restart on crashes
-pm2 restart buildguard-backend
-
-# View status
-pm2 monit
-pm2 logs buildguard-backend
-```
-
-### Make PM2 Start on Server Boot
-```bash
 pm2 startup
 pm2 save
-
-# Verify
-pm2 startup systemd -u $USER --hp /home/$USER
 ```
 
-### Monitor & Restart
+### Monitor
 ```bash
 pm2 list
+pm2 logs buildguard-backend
 pm2 restart buildguard-backend
-pm2 logs buildguard-backend --lines 100
 ```
 
----
+## Systemd Service
 
-## Solution 3: Systemd Service (Linux)
+Create `/etc/systemd/system/buildguard-backend.service`:
 
-### Create Service File
-```bash
-sudo nano /etc/systemd/system/buildguard-backend.service
-```
-
-### Add This Content
 ```ini
 [Unit]
-Description=BuildGuard-AI Backend Service
+Description=BuildGuard-AI Backend
 After=network.target
 
 [Service]
@@ -131,23 +89,20 @@ Type=simple
 User=ubuntu
 WorkingDirectory=/home/ubuntu/BuildGuard-AI/backend
 Environment="PATH=/home/ubuntu/.local/bin:/usr/local/bin"
-ExecStart=/usr/bin/python3 /home/ubuntu/BuildGuard-AI/backend/main.py
+ExecStart=/usr/bin/python3 main.py
 Restart=always
 RestartSec=10
-StandardOutput=journal
-StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-### Enable & Start
+Enable and start:
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable buildguard-backend
 sudo systemctl start buildguard-backend
-sudo systemctl status buildguard-backend
-
+```
 # Monitor logs
 sudo journalctl -u buildguard-backend -f
 ```

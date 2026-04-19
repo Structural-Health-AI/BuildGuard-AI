@@ -35,6 +35,8 @@ backend/saved_models/*.pkl
 backend/saved_models/*.h5
 backend/*.db
 *.sqlite
+temp_data/
+notebooks/
 
 # Secrets and credentials
 .env

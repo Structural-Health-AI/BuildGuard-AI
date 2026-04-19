@@ -1,31 +1,22 @@
 # BuildGuard-AI
 
-AI-powered Structural Health Monitoring and Damage Detection System with secure authentication and real-time analysis.
+A structural health monitoring and damage detection system for building inspections. Uses sensor data analysis and image recognition to detect structural damage and assess building health.
 
 ## Features
 
-### Core Analysis
-- **Sensor Data Analysis**: Classify structural health from accelerometer, strain, and temperature data
-- **Image-based Damage Detection**: Detect cracks and damage from photographs using trained CNN
-- **Report Management**: Create, manage, and track structural inspection reports
-- **Real-time Dashboard**: Monitor analysis statistics and inspection history
-
-### Security & Authentication
-- **User Authentication**: Secure JWT-based login with refresh tokens
-- **Password Reset**: Secure password reset with time-limited tokens
-- **Rate Limiting**: Protect against brute force attacks (5 failed attempts per 15 min)
-- **Protected Endpoints**: All API endpoints require authentication
-- **Data Security**: Bcrypt password hashing + parameterized SQL queries
+- Sensor data analysis for structural health assessment
+- Image-based damage detection using deep learning
+- Inspection report generation and tracking
+- User authentication and role-based access
+- Real-time dashboard and analysis visualization
 
 ## Tech Stack
 
-| Component | Technology |
-|-----------|------------|
-| Backend | FastAPI (Python) |
-| Frontend | React + Vite + TailwindCSS |
-| ML Models | PyTorch + Scikit-learn |
-| GPU Support | CUDA 11.8+ (optional) |
-| Database | SQLite |
+- **Backend**: FastAPI (Python)
+- **Frontend**: React with Vite and TailwindCSS
+- **Database**: SQLite / PostgreSQL
+- **ML Models**: PyTorch for image classification
+- **Deployment**: Docker, Nginx, PM2
 
 ## Project Structure
 
