@@ -176,8 +176,10 @@ app.add_exception_handler(Exception, lambda request, exc: {"detail": "Rate limit
 # ============= SECURITY MIDDLEWARE =============
 
 # Extract hostnames for TrustedHostMiddleware (it needs just hostnames, not full URLs)
+# In production, Nginx is the public-facing reverse proxy, so we allow all hosts
+# since only Nginx traffic reaches FastAPI (localhost/127.0.0.1)
 if settings.environment == "production":
-    trusted_hosts = extract_hostnames(settings.allowed_origins)
+    trusted_hosts = ["*"]
 else:
     trusted_hosts = ["*"]
 
