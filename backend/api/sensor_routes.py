@@ -2,35 +2,34 @@
 Sensor Analysis API Routes
 Endpoints for sensor-based structural health prediction
 """
-import sqlite3
 import json
-import os
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Depends
 from typing import List
 from slowapi import Limiter
 from slowapi.util import get_remote_address
+from sqlalchemy.orm import Session
 
 from schemas.schemas import SensorDataInput, SensorPredictionResponse, DamageLevel
 from models.sensor_model import predict_sensor_health
+from models.user_model import SensorPrediction
 from core.config import get_settings
+from database import get_db
 
 router = APIRouter()
 settings = get_settings()
-
-# Get database path from settings or use default
-if "sqlite" in settings.database_url:
-    DATABASE_PATH = os.path.join(os.path.dirname(__file__), "..", "buildguard.db")
-else:
-    # For PostgreSQL, we'll use SQLAlchemy instead of sqlite3
-    DATABASE_PATH = None
 
 limiter = Limiter(key_func=get_remote_address)
 
 
 @router.post("/predict", response_model=SensorPredictionResponse)
 @limiter.limit("20/minute")
-async def predict_from_sensors(request: Request, data: SensorDataInput, session_id: str = None):
+async def predict_from_sensors(
+    request: Request,
+    data: SensorDataInput,
+    session_id: str = None,
+    db: Session = Depends(get_db)
+):
     """
     Analyze sensor data and predict structural health
 
@@ -55,27 +54,27 @@ async def predict_from_sensors(request: Request, data: SensorDataInput, session_
             temperature=data.temperature
         )
 
-        # Save to database with session tracking
-        conn = sqlite3.connect(DATABASE_PATH)
-        cursor = conn.cursor()
-
-        cursor.execute("""
-            INSERT INTO sensor_predictions
-            (session_id, accel_x, accel_y, accel_z, strain, temperature, building_name, location,
-             damage_level, confidence, recommendations)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            session_id, data.accel_x, data.accel_y, data.accel_z, data.strain, data.temperature,
-            data.building_name, data.location, damage_level, confidence,
-            json.dumps(recommendations)
-        ))
-
-        prediction_id = cursor.lastrowid
-        conn.commit()
-        conn.close()
+        # Save to database using SQLAlchemy ORM
+        db_prediction = SensorPrediction(
+            session_id=session_id,
+            accel_x=data.accel_x,
+            accel_y=data.accel_y,
+            accel_z=data.accel_z,
+            strain=data.strain,
+            temperature=data.temperature,
+            building_name=data.building_name,
+            location=data.location,
+            damage_level=damage_level,
+            confidence=confidence,
+            recommendations=recommendations
+        )
+        
+        db.add(db_prediction)
+        db.commit()
+        db.refresh(db_prediction)
 
         return SensorPredictionResponse(
-            id=prediction_id,
+            id=db_prediction.id,
             damage_level=DamageLevel(damage_level),
             confidence=confidence,
             timestamp=datetime.now(),
@@ -84,73 +83,83 @@ async def predict_from_sensors(request: Request, data: SensorDataInput, session_
         )
 
     except Exception as e:
+        db.rollback()
         raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
 
 
 @router.get("/history", response_model=List[dict])
-async def get_sensor_history(limit: int = 50):
+async def get_sensor_history(limit: int = 50, db: Session = Depends(get_db)):
     """Get history of sensor predictions"""
-    conn = sqlite3.connect(DATABASE_PATH)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        SELECT id, accel_x, accel_y, accel_z, strain, temperature,
-               building_name, location, damage_level, confidence,
-               recommendations, created_at
-        FROM sensor_predictions
-        ORDER BY created_at DESC
-        LIMIT ?
-    """, (limit,))
-
-    rows = cursor.fetchall()
-    conn.close()
+    predictions = db.query(SensorPrediction).order_by(
+        SensorPrediction.created_at.desc()
+    ).limit(limit).all()
 
     results = []
-    for row in rows:
-        item = dict(row)
-        item['recommendations'] = json.loads(item['recommendations']) if item['recommendations'] else []
-        results.append(item)
+    for pred in predictions:
+        results.append({
+            "id": pred.id,
+            "session_id": pred.session_id,
+            "accel_x": pred.accel_x,
+            "accel_y": pred.accel_y,
+            "accel_z": pred.accel_z,
+            "strain": pred.strain,
+            "temperature": pred.temperature,
+            "building_name": pred.building_name,
+            "location": pred.location,
+            "damage_level": pred.damage_level,
+            "confidence": pred.confidence,
+            "recommendations": pred.recommendations or [],
+            "created_at": pred.created_at
+        })
 
     return results
 
 
 @router.get("/{prediction_id}")
-async def get_sensor_prediction(prediction_id: int):
+async def get_sensor_prediction(prediction_id: int, db: Session = Depends(get_db)):
     """Get a specific sensor prediction by ID"""
-    conn = sqlite3.connect(DATABASE_PATH)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
+    prediction = db.query(SensorPrediction).filter(
+        SensorPrediction.id == prediction_id
+    ).first()
 
-    cursor.execute("""
-        SELECT * FROM sensor_predictions WHERE id = ?
-    """, (prediction_id,))
+@router.get("/{prediction_id}")
+async def get_sensor_prediction(prediction_id: int, db: Session = Depends(get_db)):
+    """Get a specific sensor prediction by ID"""
+    prediction = db.query(SensorPrediction).filter(
+        SensorPrediction.id == prediction_id
+    ).first()
 
-    row = cursor.fetchone()
-    conn.close()
-
-    if not row:
+    if not prediction:
         raise HTTPException(status_code=404, detail="Prediction not found")
 
-    result = dict(row)
-    result['recommendations'] = json.loads(result['recommendations']) if result['recommendations'] else []
-
-    return result
+    return {
+        "id": prediction.id,
+        "session_id": prediction.session_id,
+        "accel_x": prediction.accel_x,
+        "accel_y": prediction.accel_y,
+        "accel_z": prediction.accel_z,
+        "strain": prediction.strain,
+        "temperature": prediction.temperature,
+        "building_name": prediction.building_name,
+        "location": prediction.location,
+        "damage_level": prediction.damage_level,
+        "confidence": prediction.confidence,
+        "recommendations": prediction.recommendations or [],
+        "created_at": prediction.created_at
+    }
 
 
 @router.delete("/{prediction_id}")
-async def delete_sensor_prediction(prediction_id: int):
+async def delete_sensor_prediction(prediction_id: int, db: Session = Depends(get_db)):
     """Delete a sensor prediction"""
-    conn = sqlite3.connect(DATABASE_PATH)
-    cursor = conn.cursor()
+    prediction = db.query(SensorPrediction).filter(
+        SensorPrediction.id == prediction_id
+    ).first()
 
-    cursor.execute("DELETE FROM sensor_predictions WHERE id = ?", (prediction_id,))
-
-    if cursor.rowcount == 0:
-        conn.close()
+    if not prediction:
         raise HTTPException(status_code=404, detail="Prediction not found")
 
-    conn.commit()
-    conn.close()
+    db.delete(prediction)
+    db.commit()
 
     return {"message": "Prediction deleted successfully"}

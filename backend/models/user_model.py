@@ -1,7 +1,7 @@
 """
 User model with authentication fields
 """
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, Float, JSON
 from sqlalchemy.orm import declarative_base
 from datetime import datetime, timezone
 
@@ -92,3 +92,26 @@ class EmailVerificationToken(Base):
 
     def __repr__(self):
         return f"<EmailVerificationToken(user_id={self.user_id}, email={self.email})>"
+
+
+class SensorPrediction(Base):
+    """Sensor health prediction results"""
+
+    __tablename__ = "sensor_predictions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(String(255), nullable=True, index=True)
+    accel_x = Column(Float, nullable=False)
+    accel_y = Column(Float, nullable=False)
+    accel_z = Column(Float, nullable=False)
+    strain = Column(Float, nullable=False)
+    temperature = Column(Float, nullable=False)
+    building_name = Column(String(255), nullable=True)
+    location = Column(String(255), nullable=True)
+    damage_level = Column(String(50), nullable=False)  # healthy, minor_damage, severe_damage
+    confidence = Column(Float, nullable=False)
+    recommendations = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    def __repr__(self):
+        return f"<SensorPrediction(id={self.id}, damage_level={self.damage_level}, confidence={self.confidence})>"
