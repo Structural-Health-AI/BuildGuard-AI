@@ -75,6 +75,32 @@ def determine_overall_status(sensor_prediction_id: int = None, image_analysis_id
         return "healthy"  # Default if no analysis linked
 
 
+def check_report_ownership(report_id: int, user_id: int, is_admin: bool = False) -> bool:
+    """
+    Check if user owns the report or is admin
+    
+    Returns: True if user owns report or is admin
+    Raises: HTTPException if not authorized
+    """
+    conn = sqlite3.connect(DATABASE_PATH)
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT user_id FROM reports WHERE id = ?", (report_id,))
+    row = cursor.fetchone()
+    conn.close()
+    
+    if not row:
+        raise HTTPException(status_code=404, detail="Report not found")
+    
+    report_user_id = row[0]
+    
+    # Allow access if user owns it or is admin
+    if report_user_id == user_id or is_admin:
+        return True
+    
+    raise HTTPException(status_code=403, detail="Not authorized to access this report")
+
+
 @router.post("/", response_model=ReportResponse)
 @limiter.limit("15/minute")
 async def create_report(
@@ -104,8 +130,8 @@ async def create_report(
             INSERT INTO reports
             (building_name, location, inspector_name, description,
              sensor_prediction_id, image_analysis_id, overall_status,
-             created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+             user_id, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             report.building_name,
             report.location,
@@ -114,6 +140,7 @@ async def create_report(
             report.sensor_prediction_id,
             report.image_analysis_id,
             overall_status,
+            current_user.id,
             now,
             now
         ))
@@ -204,6 +231,9 @@ async def get_report(
     if not row:
         conn.close()
         raise HTTPException(status_code=404, detail="Report not found")
+    
+    # Check access control
+    check_report_ownership(report_id, current_user.id, current_user.is_admin)
 
     report = dict(row)
 
@@ -255,6 +285,9 @@ async def update_report(
     if not cursor.fetchone():
         conn.close()
         raise HTTPException(status_code=404, detail="Report not found")
+    
+    # Check access control
+    check_report_ownership(report_id, current_user.id, current_user.is_admin)
 
     # Determine new overall status
     overall_status = determine_overall_status(
@@ -318,6 +351,9 @@ async def delete_report(
     conn = sqlite3.connect(DATABASE_PATH)
     cursor = conn.cursor()
 
+    # Check access control first
+    check_report_ownership(report_id, current_user.id, current_user.is_admin)
+    
     cursor.execute("DELETE FROM reports WHERE id = ?", (report_id,))
 
     if cursor.rowcount == 0:

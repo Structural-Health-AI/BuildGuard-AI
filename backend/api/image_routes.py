@@ -95,9 +95,10 @@ async def analyze_image(
 
         cursor.execute("""
             INSERT INTO image_analyses
-            (session_id, image_path, damage_detected, damage_type, confidence, recommendations)
-            VALUES (?, ?, ?, ?, ?, ?)
+            (user_id, session_id, image_path, damage_detected, damage_type, confidence, recommendations)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         """, (
+            current_user.id,
             session_id,
             file_path,
             1 if damage_detected else 0,
@@ -147,9 +148,10 @@ async def get_image_history(
         SELECT id, image_path, damage_detected, damage_type, confidence,
                recommendations, created_at
         FROM image_analyses
+        WHERE user_id = ? OR user_id IS NULL
         ORDER BY created_at DESC
         LIMIT ?
-    """, (limit,))
+    """, (current_user.id, limit))
 
     rows = cursor.fetchall()
     conn.close()

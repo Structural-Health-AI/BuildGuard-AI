@@ -91,9 +91,17 @@ async def predict_from_sensors(
 
 
 @router.get("/history", response_model=List[dict])
-async def get_sensor_history(limit: int = 50, db: Session = Depends(get_db)):
-    """Get history of sensor predictions"""
-    predictions = db.query(SensorPrediction).order_by(
+@limiter.limit("30/minute")
+async def get_sensor_history(
+    request: Request,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get history of sensor predictions for current user"""
+    predictions = db.query(SensorPrediction).filter(
+        SensorPrediction.user_id == current_user.id
+    ).order_by(
         SensorPrediction.created_at.desc()
     ).limit(limit).all()
 
@@ -118,15 +126,14 @@ async def get_sensor_history(limit: int = 50, db: Session = Depends(get_db)):
     return results
 
 
-@router.get("/{prediction_id}")
-async def get_sensor_prediction(prediction_id: int, db: Session = Depends(get_db)):
-    """Get a specific sensor prediction by ID"""
-    prediction = db.query(SensorPrediction).filter(
-        SensorPrediction.id == prediction_id
-    ).first()
-
-@router.get("/{prediction_id}")
-async def get_sensor_prediction(prediction_id: int, db: Session = Depends(get_db)):
+@router.get("/{prediction_id}", response_model=dict)
+@limiter.limit("60/minute")
+async def get_sensor_prediction(
+    request: Request,
+    prediction_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """Get a specific sensor prediction by ID"""
     prediction = db.query(SensorPrediction).filter(
         SensorPrediction.id == prediction_id
@@ -134,6 +141,10 @@ async def get_sensor_prediction(prediction_id: int, db: Session = Depends(get_db
 
     if not prediction:
         raise HTTPException(status_code=404, detail="Prediction not found")
+    
+    # Check access control
+    if prediction.user_id != current_user.id and not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Not authorized to access this prediction")
 
     return {
         "id": prediction.id,
@@ -153,7 +164,13 @@ async def get_sensor_prediction(prediction_id: int, db: Session = Depends(get_db
 
 
 @router.delete("/{prediction_id}")
-async def delete_sensor_prediction(prediction_id: int, db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+async def delete_sensor_prediction(
+    request: Request,
+    prediction_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """Delete a sensor prediction"""
     prediction = db.query(SensorPrediction).filter(
         SensorPrediction.id == prediction_id
@@ -161,6 +178,10 @@ async def delete_sensor_prediction(prediction_id: int, db: Session = Depends(get
 
     if not prediction:
         raise HTTPException(status_code=404, detail="Prediction not found")
+    
+    # Check access control
+    if prediction.user_id != current_user.id and not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this prediction")
 
     db.delete(prediction)
     db.commit()
