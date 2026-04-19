@@ -12,9 +12,10 @@ from sqlalchemy.orm import Session
 
 from schemas.schemas import SensorDataInput, SensorPredictionResponse, DamageLevel
 from models.sensor_model import predict_sensor_health
-from models.user_model import SensorPrediction
+from models.user_model import User, SensorPrediction
 from core.config import get_settings
 from database import get_db
+from api.dependencies import get_current_user
 
 router = APIRouter()
 settings = get_settings()
@@ -28,7 +29,8 @@ async def predict_from_sensors(
     request: Request,
     data: SensorDataInput,
     session_id: str = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Analyze sensor data and predict structural health
@@ -56,6 +58,7 @@ async def predict_from_sensors(
 
         # Save to database using SQLAlchemy ORM
         db_prediction = SensorPrediction(
+            user_id=current_user.id,
             session_id=session_id,
             accel_x=data.accel_x,
             accel_y=data.accel_y,

@@ -100,6 +100,7 @@ class SensorPrediction(Base):
     __tablename__ = "sensor_predictions"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=True, index=True)  # Optional - for authenticated users
     session_id = Column(String(255), nullable=True, index=True)
     accel_x = Column(Float, nullable=False)
     accel_y = Column(Float, nullable=False)

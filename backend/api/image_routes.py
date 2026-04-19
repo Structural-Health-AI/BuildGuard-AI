@@ -7,14 +7,18 @@ import sqlite3
 import json
 import uuid
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, UploadFile, File, Request
+from fastapi import APIRouter, HTTPException, UploadFile, File, Request, Depends
 from typing import List
 from slowapi import Limiter
 from slowapi.util import get_remote_address
+from sqlalchemy.orm import Session
 
 from schemas.schemas import ImageAnalysisResponse
 from models.image_model import predict_image_damage_multiscale
+from models.user_model import User
 from core.config import get_settings
+from database import get_db
+from api.dependencies import get_current_user
 
 router = APIRouter()
 settings = get_settings()
@@ -32,7 +36,13 @@ limiter = Limiter(key_func=get_remote_address)
 
 @router.post("/analyze", response_model=ImageAnalysisResponse)
 @limiter.limit("10/minute")
-async def analyze_image(request: Request, file: UploadFile = File(...), session_id: str = None):
+async def analyze_image(
+    request: Request,
+    file: UploadFile = File(...),
+    session_id: str = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """
     Analyze an uploaded image for structural damage
 
@@ -121,7 +131,13 @@ async def analyze_image(request: Request, file: UploadFile = File(...), session_
 
 
 @router.get("/history", response_model=List[dict])
-async def get_image_history(limit: int = 50):
+@limiter.limit("30/minute")
+async def get_image_history(
+    request: Request,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """Get history of image analyses"""
     conn = sqlite3.connect(DATABASE_PATH)
     conn.row_factory = sqlite3.Row
