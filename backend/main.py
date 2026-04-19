@@ -10,7 +10,6 @@ from datetime import datetime, timedelta
 from urllib.parse import urlparse
 from fastapi import FastAPI, Request, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.staticfiles import StaticFiles
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -175,19 +174,8 @@ app.add_exception_handler(Exception, lambda request, exc: {"detail": "Rate limit
 
 # ============= SECURITY MIDDLEWARE =============
 
-# Extract hostnames for TrustedHostMiddleware (it needs just hostnames, not full URLs)
-# In production, Nginx is the public-facing reverse proxy, so we allow all hosts
-# since only Nginx traffic reaches FastAPI (localhost/127.0.0.1)
-if settings.environment == "production":
-    trusted_hosts = ["*"]
-else:
-    trusted_hosts = ["*"]
-
-# Trusted Host Middleware - only allow requests from trusted hosts
-app.add_middleware(
-    TrustedHostMiddleware,
-    allowed_hosts=trusted_hosts
-)
+# Note: TrustedHostMiddleware removed - Nginx is the public-facing reverse proxy
+# and provides the security boundary. FastAPI only receives requests from localhost/127.0.0.1
 
 # CORS middleware - restrictive in production
 cors_origins = settings.cors_origins
