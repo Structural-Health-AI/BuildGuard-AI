@@ -1,12 +1,393 @@
-# BuildGuard-AI
+# BuildGuard-AI: Structural Defect Detection System
 
-[![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
-[![Docker](https://img.shields.io/badge/Docker-Ready-brightblue.svg)](https://www.docker.com/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-orange.svg)](https://fastapi.tiangolo.com/)
-[![React](https://img.shields.io/badge/React-18+-61dafb.svg)](https://react.dev/)
+AI-powered platform for automatic detection and assessment of structural defects in buildings using computer vision and sensor data analysis.
 
-Structural health monitoring and damage detection system for building inspections. Uses sensor data analysis and deep learning image recognition to detect structural damage and assess building health in real-time.
+---
+
+## 🏗️ What is BuildGuard-AI?
+
+BuildGuard-AI combines **image-based defect detection** and **sensor data analysis** to automate structural health monitoring. The system:
+
+- **Detects structural defects** (cracks, damage) from photos using PyTorch deep learning
+- **Analyzes sensor data** from building health monitoring systems  
+- **Generates reports** with defect severity and recommendations
+- **Provides an intuitive dashboard** for inspection teams and engineers
+
+**Use Cases:**
+- Post-disaster structural assessment
+- Periodic building inspections
+- Maintenance planning and prioritization
+- Insurance assessments
+- Real estate due diligence
+
+---
+
+## 🏛️ System Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                   Frontend (React + Vite)               │
+│              Dashboard, Image Upload, Reports            │
+└────────────┬────────────────────────────────┬───────────┘
+             │                                │
+    ┌────────┴────────┐            ┌─────────┴──────────┐
+    │ REST API Calls  │            │  WebSocket (Live)  │
+    └────────┬────────┘            └─────────┬──────────┘
+             │                                │
+┌────────────▼─────────────────────────────────▼──────────┐
+│              Backend (FastAPI + Python)                  │
+│  ├─ Image Detection API     (PyTorch CNN)               │
+│  ├─ Sensor Data API         (Data Processing)           │
+│  ├─ Authentication & RBAC   (JWT + Supabase)            │
+│  └─ Report Generation       (Aggregation & Export)      │
+└────────────┬──────────────────────────────────┬─────────┘
+             │                                  │
+    ┌────────▼────────────┐        ┌───────────▼────────┐
+    │  Supabase SQL DB    │        │  Model Storage     │
+    │  (User, Reports)    │        │  (.pt files)       │
+    └─────────────────────┘        └────────────────────┘
+```
+
+---
+
+## 📋 Tech Stack
+
+| Layer | Technology | Purpose |
+|-------|-----------|---------|
+| **Frontend** | React 18 + Vite + TailwindCSS | Modern, responsive UI |
+| **Backend** | FastAPI + Python 3.10+ | High-performance REST API |
+| **ML/AI** | PyTorch + OpenCV | Image classification & defect detection |
+| **Database** | Supabase (PostgreSQL) | User data, reports, history |
+| **Auth** | JWT + Supabase Auth | Secure authentication |
+| **Deployment** | DigitalOcean + Docker + Nginx | Production hosting |
+| **Process Manager** | PM2 | Service orchestration |
+
+---
+
+## 🚀 Quick Start (Local Development)
+
+### Prerequisites
+
+- Python 3.10+
+- Node.js 18+
+- Supabase account (free tier available)
+- Git
+
+### 1. Clone Repository
+
+```bash
+git clone https://github.com/Structural-Health-AI/BuildGuard-AI.git
+cd BuildGuard-AI
+```
+
+### 2. Setup Backend
+
+```bash
+cd backend
+
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Create .env file
+cp .env.example .env
+# Edit .env and add your Supabase credentials
+```
+
+### 3. Setup Frontend
+
+```bash
+cd ../frontend
+
+# Install dependencies
+npm install
+
+# Create .env file
+cp .env.example .env
+# Edit .env and add API URL
+```
+
+### 4. Start Services
+
+```bash
+# Terminal 1 - Backend
+cd backend
+source venv/bin/activate
+python main.py
+# Backend runs at http://localhost:8000
+
+# Terminal 2 - Frontend
+cd frontend
+npm run dev
+# Frontend runs at http://localhost:5173
+```
+
+### 5. Access Application
+
+- **Frontend:** http://localhost:5173
+- **API Docs:** http://localhost:8000/docs
+- **Health Check:** http://localhost:8000/api/health
+
+---
+
+## 📖 Setup Guides
+
+- **[Security Guide](./docs/SECURITY.md)** - Secrets management, credential rotation, best practices
+- **[Deployment Guide](./docs/DEPLOYMENT.md)** - Production deployment on DigitalOcean with Docker/PM2/Nginx
+- **[API Documentation](./backend/api/)** - REST API endpoints and schemas
+
+---
+
+## 🔐 Environment Configuration
+
+### Backend (.env)
+
+```env
+# Database
+DATABASE_URL=postgresql://postgres:[PASSWORD]@[HOST]:5432/postgres
+
+# Security
+SECRET_KEY=<generate with: python -c "import secrets; print(secrets.token_urlsafe(32))">
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+# CORS
+ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
+ENVIRONMENT=development
+
+# Email (optional)
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASSWORD=your-app-password
+```
+
+### Frontend (.env)
+
+```env
+VITE_API_URL=http://localhost:8000/api
+VITE_APP_NAME=BuildGuard-AI
+```
+
+See [Security Guide](./docs/SECURITY.md) for detailed setup.
+
+---
+
+## 🐳 Docker Deployment
+
+```bash
+# Build and run with Docker Compose
+docker-compose up -d
+
+# View logs
+docker-compose logs -f backend
+docker-compose logs -f frontend
+
+# Stop services
+docker-compose down
+```
+
+---
+
+## 🌐 Production Deployment
+
+For detailed production deployment steps:
+
+1. **DigitalOcean Droplet Setup** - Server initialization and dependencies
+2. **Application Deployment** - Using PM2 or Docker
+3. **Nginx Configuration** - Reverse proxy and SSL/TLS
+4. **Monitoring** - Health checks and log management
+
+See [Deployment Guide](./docs/DEPLOYMENT.md)
+
+---
+
+## 📊 API Quick Reference
+
+### Authentication
+
+```bash
+# Register
+curl -X POST http://localhost:8000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","password":"password123"}'
+
+# Login
+curl -X POST http://localhost:8000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","password":"password123"}'
+```
+
+### Image Detection
+
+```bash
+# Upload and analyze image
+curl -X POST http://localhost:8000/api/images/detect \
+  -H "Authorization: Bearer {token}" \
+  -F "file=@path/to/image.jpg"
+```
+
+### Sensor Data
+
+```bash
+# Submit sensor readings
+curl -X POST http://localhost:8000/api/sensor/data \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{"sensor_id":"s1","temperature":25.5,"humidity":60}'
+```
+
+### Reports
+
+```bash
+# Generate report
+curl -X POST http://localhost:8000/api/reports/generate \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{"image_ids":[1,2,3],"building_id":"b1"}'
+```
+
+Full API documentation: http://localhost:8000/docs
+
+---
+
+## 🧪 Testing
+
+```bash
+# Run backend tests
+cd backend
+pytest
+
+# Run frontend tests
+cd frontend
+npm test
+
+# Coverage
+pytest --cov=. --cov-report=html
+```
+
+---
+
+## 📁 Project Structure
+
+```
+BuildGuard-AI/
+├── backend/                    # FastAPI backend
+│   ├── api/                   # REST API routes
+│   ├── core/                  # Configuration & security
+│   ├── models/                # SQLAlchemy models
+│   ├── schemas/               # Pydantic schemas
+│   ├── main.py                # Entry point
+│   └── requirements.txt        # Python dependencies
+│
+├── frontend/                   # React frontend
+│   ├── src/
+│   │   ├── components/        # Reusable components
+│   │   ├── pages/             # Page components
+│   │   ├── services/          # API client
+│   │   └── App.jsx
+│   ├── vite.config.js
+│   └── package.json
+│
+├── data/                       # Training/test data
+│   ├── images/
+│   │   ├── train/
+│   │   ├── validation/
+│   │   └── test/
+│   └── sensor/
+│
+├── models/                     # Trained ML models
+│   └── damage_detector_pytorch.pt
+│
+├── scripts/                    # Utility scripts
+│   ├── deployment/
+│   ├── database/
+│   └── security/
+│
+├── docs/                       # Documentation
+│   ├── SECURITY.md
+│   ├── DEPLOYMENT.md
+│   └── ARCHITECTURE.md
+│
+└── README.md
+```
+
+---
+
+## 🤝 Contributing
+
+1. Create a feature branch: `git checkout -b feature/your-feature`
+2. Commit changes: `git commit -m 'Add your feature'`
+3. Push to branch: `git push origin feature/your-feature`
+4. Submit pull request
+
+**Code Style:**
+- Python: PEP 8 (Black formatter)
+- JavaScript: ESLint + Prettier
+- All commits pass security checks
+
+---
+
+## 🔒 Security
+
+- All secrets stored in environment variables (not in code)
+- Pre-commit hooks prevent accidental secret commits
+- JWT-based authentication with refresh tokens
+- Role-based access control (RBAC)
+- SQL injection prevention (SQLAlchemy ORM)
+- CORS configured for specific origins
+
+See [Security Guide](./docs/SECURITY.md) for detailed security practices.
+
+---
+
+## 📝 License
+
+This project is licensed under the MIT License - see [LICENSE](./LICENSE) file for details.
+
+---
+
+## 👥 Team
+
+**Structural Health AI** - Structural defect detection through AI
+
+---
+
+## 📞 Support
+
+- 📖 Documentation: See `/docs` folder
+- 🐛 Issues: GitHub Issues
+- 💬 Discussions: GitHub Discussions
+- 📧 Email: contact@structural-health-ai.com
+
+---
+
+## 🗺️ Roadmap
+
+- [ ] Multi-model ensemble detection
+- [ ] Real-time drone integration
+- [ ] Mobile app for on-site inspections
+- [ ] Advanced reporting with 3D visualization
+- [ ] Machine learning model updates via API
+- [ ] Automated maintenance alerts
+
+---
+
+## 🙏 Acknowledgments
+
+- PyTorch for deep learning framework
+- FastAPI for backend framework
+- React community for frontend tools
+- Supabase for database infrastructure
+
+---
+
+**Last Updated:** April 2026
+
+**Current Status:** ✅ Production Ready
 
 ## Features
 

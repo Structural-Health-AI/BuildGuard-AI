@@ -1,52 +1,508 @@
-# Deployment Guide
+# BuildGuard-AI Deployment Guide
 
 ## Overview
 
-This guide covers deploying BuildGuard-AI to production on DigitalOcean VPS with SSL/TLS, Nginx, and PM2.
+This guide covers deployment procedures for BuildGuard-AI on DigitalOcean using Docker and PM2.
+
+---
 
 ## Prerequisites
 
-- DigitalOcean account with a VPS (Ubuntu 22.04+, 4GB+ RAM)
-- Domain name (e.g., www.build-guard.app)
-- SSH access to VPS
-- GitHub repository with code
+- DigitalOcean Droplet (2GB RAM minimum, Ubuntu 22.04)
+- SSH access to your server
+- Domain name (optional but recommended for HTTPS)
+- Supabase PostgreSQL database configured
+- GitHub repository access
 
-## Step 1: Initial VPS Setup
+---
 
-### SSH into VPS
+## DigitalOcean Server Setup
+
+### 1. Connect to Your Droplet
 
 ```bash
-ssh root@your_server_ip
+ssh root@your_droplet_ip
+# or
+ssh username@your_droplet_ip
 ```
 
-### Update System
+### 2. System Updates
 
 ```bash
 apt update && apt upgrade -y
-apt install -y curl wget git htop net-tools
+apt install -y curl wget git build-essential
 ```
 
-### Install Docker
-
-```bash
-curl -fsSL https://get.docker.com -o get-docker.sh
-sh get-docker.sh
-```
-
-### Install Node.js & npm
+### 3. Install Node.js (for PM2)
 
 ```bash
 curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-apt install -y nodejs
-node --version && npm --version
+apt-get install -y nodejs npm
+npm install -g pm2
+pm2 startup
 ```
 
-### Install Python 3.10+
+### 4. Install Python & Dependencies
 
 ```bash
-apt install -y python3.10 python3-pip python3.10-venv
-python3 --version
+apt install -y python3 python3-pip python3-venv python3-dev
 ```
+
+### 5. Install Docker (Optional - for containerized deployment)
+
+```bash
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+sudo usermod -aG docker $USER
+```
+
+---
+
+## Application Deployment
+
+### Option A: Using PM2 (Recommended for Small Deployments)
+
+#### 1. Clone Repository
+
+```bash
+cd ~
+git clone https://github.com/Structural-Health-AI/BuildGuard-AI.git
+cd BuildGuard-AI
+```
+
+#### 2. Configure Environment
+
+```bash
+cd backend
+# Create .env file (use secure method - copy from secure storage)
+cat > .env << 'EOF'
+# Database
+DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@db.supabase.co:5432/postgres
+
+# Security
+SECRET_KEY=your-secret-key-change-in-production
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+REFRESH_TOKEN_EXPIRE_DAYS=7
+
+# CORS Configuration
+ALLOWED_ORIGINS=https://www.build-guard.app
+ENVIRONMENT=production
+FRONTEND_URL=https://www.build-guard.app
+
+# Email (optional)
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASSWORD=your-app-password
+SENDER_EMAIL=your-email@gmail.com
+EOF
+```
+
+#### 3. Setup Backend
+
+```bash
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run migrations
+python migrate_db.py
+
+# Test database connection
+python test_db.py
+```
+
+#### 4. Start Backend with PM2
+
+```bash
+pm2 start main.py \
+  --name "buildguard-backend" \
+  --interpreter python \
+  --watch \
+  --max-memory-restart 200M
+
+pm2 save
+```
+
+#### 5. Deploy Frontend
+
+```bash
+cd ../frontend
+npm install
+npm run build
+
+# Serve with nginx or static server
+npm install -g http-server
+pm2 start 'http-server dist -p 3000' --name "buildguard-frontend"
+pm2 save
+```
+
+#### 6. Start on Boot
+
+```bash
+pm2 startup systemd -u root --hp /root
+pm2 save
+```
+
+#### 7. View Logs
+
+```bash
+pm2 logs buildguard-backend
+pm2 logs buildguard-frontend
+pm2 monit
+```
+
+---
+
+### Option B: Docker Deployment (Recommended for Large Deployments)
+
+#### 1. Clone Repository
+
+```bash
+cd ~
+git clone https://github.com/Structural-Health-AI/BuildGuard-AI.git
+cd BuildGuard-AI
+```
+
+#### 2. Configure Environment
+
+Create `.env` file (see Option A, Step 2)
+
+#### 3. Build and Run Containers
+
+```bash
+docker-compose up -d
+docker-compose logs -f
+```
+
+#### 4. Verify Services
+
+```bash
+docker ps
+curl http://localhost:8000/api/health
+curl http://localhost:3000
+```
+
+#### 5. Database Migrations
+
+```bash
+docker-compose exec backend python migrate_db.py
+```
+
+---
+
+## Nginx Configuration
+
+### 1. Install Nginx
+
+```bash
+apt install -y nginx
+systemctl start nginx
+systemctl enable nginx
+```
+
+### 2. Create Nginx Config
+
+```bash
+sudo tee /etc/nginx/sites-available/buildguard > /dev/null << 'EOF'
+upstream backend {
+    server 127.0.0.1:8000;
+}
+
+upstream frontend {
+    server 127.0.0.1:3000;
+}
+
+server {
+    listen 80;
+    server_name www.build-guard.app build-guard.app;
+
+    # Redirect to HTTPS
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name www.build-guard.app build-guard.app;
+
+    # SSL certificates (use Let's Encrypt)
+    ssl_certificate /etc/letsencrypt/live/www.build-guard.app/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/www.build-guard.app/privkey.pem;
+
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "no-referrer-when-downgrade" always;
+
+    # Backend API
+    location /api/ {
+        proxy_pass http://backend;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_redirect off;
+    }
+
+    # Frontend
+    location / {
+        proxy_pass http://frontend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Cache static assets
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
+}
+EOF
+```
+
+### 3. Enable Nginx Config
+
+```bash
+sudo ln -s /etc/nginx/sites-available/buildguard /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+---
+
+## SSL/TLS Setup (Let's Encrypt)
+
+### 1. Install Certbot
+
+```bash
+apt install -y certbot python3-certbot-nginx
+```
+
+### 2. Generate Certificate
+
+```bash
+certbot certonly --nginx -d www.build-guard.app -d build-guard.app
+```
+
+### 3. Auto-Renewal
+
+```bash
+systemctl enable certbot.timer
+systemctl start certbot.timer
+```
+
+---
+
+## Monitoring & Maintenance
+
+### Check Service Status
+
+```bash
+# PM2 services
+pm2 status
+pm2 logs buildguard-backend --lines 50
+
+# Docker services
+docker ps
+docker logs buildguard-backend
+
+# System resources
+top
+df -h
+free -h
+```
+
+### Restart Services
+
+```bash
+# PM2
+pm2 restart all
+pm2 restart buildguard-backend
+
+# Docker
+docker-compose restart
+docker-compose restart backend
+```
+
+### View Nginx Logs
+
+```bash
+tail -f /var/log/nginx/access.log
+tail -f /var/log/nginx/error.log
+```
+
+---
+
+## Troubleshooting
+
+### Backend Won't Start
+
+```bash
+# Check PM2 logs
+pm2 logs buildguard-backend --lines 100
+
+# Verify .env file
+cat ~/BuildGuard-AI/backend/.env
+
+# Check port 8000
+lsof -i :8000
+netstat -tlnp | grep 8000
+
+# Check Python errors
+cd ~/BuildGuard-AI/backend
+source venv/bin/activate
+python main.py
+```
+
+### Database Connection Issues
+
+```bash
+# Verify DATABASE_URL
+grep DATABASE_URL backend/.env
+
+# Test connection
+cd backend
+python -c "from core.config import settings; print(settings.database_url)"
+python test_db.py
+```
+
+### Frontend Not Loading
+
+```bash
+# Check frontend service
+pm2 logs buildguard-frontend
+
+# Check port 3000
+curl http://localhost:3000
+lsof -i :3000
+```
+
+### API Health Check
+
+```bash
+# Test backend endpoint
+curl http://127.0.0.1:8000/api/health
+
+# Test through Nginx
+curl https://www.build-guard.app/api/health
+```
+
+---
+
+## Backup & Recovery
+
+### Database Backup (Supabase)
+
+```bash
+# Automated backups available in Supabase Dashboard
+# Manual backup:
+pg_dump postgresql://user:password@host:5432/postgres > backup.sql
+```
+
+### Application Backup
+
+```bash
+cd ~
+tar -czf buildguard-backup-$(date +%Y%m%d).tar.gz BuildGuard-AI/
+```
+
+### Restore from Backup
+
+```bash
+tar -xzf buildguard-backup-20260419.tar.gz
+cd BuildGuard-AI
+pm2 restart all
+```
+
+---
+
+## Production Secrets Management
+
+**Important:** Do NOT use `.env` files in production. Use DigitalOcean App Platform or Doppler.
+
+### Using Doppler (Recommended)
+
+```bash
+# Install Doppler CLI
+curl -Ls https://cli.doppler.com/install.sh | sh
+
+# Configure
+doppler login
+doppler setup
+
+# Run application
+doppler run -- pm2 start main.py --name "buildguard-backend" --interpreter python
+```
+
+---
+
+## Performance Optimization
+
+### 1. Enable Gzip Compression
+
+Add to `/etc/nginx/nginx.conf`:
+```nginx
+gzip on;
+gzip_types text/plain text/css application/json application/javascript;
+```
+
+### 2. Increase File Descriptors
+
+```bash
+echo "* soft nofile 65536" | sudo tee -a /etc/security/limits.conf
+echo "* hard nofile 65536" | sudo tee -a /etc/security/limits.conf
+```
+
+### 3. Monitor Resource Usage
+
+```bash
+# Setup monitoring
+pm2 plus
+
+# Or use htop
+apt install -y htop
+htop
+```
+
+---
+
+## Rollback Procedure
+
+### Quick Rollback (PM2)
+
+```bash
+cd ~/BuildGuard-AI
+git log --oneline  # Find previous commit
+git checkout <commit-hash>
+cd backend && pip install -r requirements.txt
+pm2 restart all
+```
+
+### Full Rollback (Docker)
+
+```bash
+docker-compose down
+cd ~/BuildGuard-AI
+git checkout <commit-hash>
+docker-compose up -d
+```
+
+---
+
+**Last Updated:** 2026-04-19
+
+For more information, see [SECURITY.md](./SECURITY.md) and the main [README.md](../README.md)
 
 ### Install PM2 (Process Manager)
 

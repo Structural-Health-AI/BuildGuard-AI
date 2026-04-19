@@ -1,95 +1,237 @@
-# Python
+# ============================================
+# PYTHON
+# ============================================
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+*.pyc
+*.pyo
+*.env
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+*.log
+
+# Virtual Environments
 venv/
 ENV/
 env/
 .venv
-*.egg-info/
-dist/
-build/
-.pytest_cache/
-.coverage
-htmlcov/
+backend/venv/
+env.bak/
+venv.bak/
 
-# Node
+# ============================================
+# NODE.JS / JAVASCRIPT
+# ============================================
 node_modules/
 npm-debug.log
-yarn-error.log
-dist/
-.env.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.eslintcache
+lerna-debug.log*
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
 
-# IDE
-.idea/
+# ============================================
+# IDE & EDITOR
+# ============================================
 .vscode/
+.idea/
 .vs/
-*.swp
-*.swo
-*.sublime-*
 .DS_Store
 Thumbs.db
+*.swp
+*.swo
+*~
+.#*
+*.sublime-project
+*.sublime-workspace
+*.iml
+.classpath
+.project
+.settings/
 
-# Jupyter
-.ipynb_checkpoints/
-*.ipynb
-
-# Environment variables & secrets
+# ============================================
+# ENVIRONMENT & SECRETS
+# ============================================
 .env
 .env.local
 .env.*.local
-.env.*.private
-secrets.json
-credentials.json
+.env.development.local
+.env.test.local
+.env.production.local
 backend/.env
 frontend/.env
+secrets.json
+credentials.json
+*.key
+*.pem
+*.p12
+*.pfx
 
-# Databases & local files
+# ============================================
+# DATABASES
+# ============================================
 *.db
 *.sqlite
 *.sqlite3
+*.sqlite-journal
 buildguard.db
+backend/buildguard.db
+backend/backend/buildguard.db
 dump.sql
+*.sql
 
-# Build outputs
-*.pth
-*.pkl
-*.h5
-*.joblib
+# ============================================
+# MACHINE LEARNING MODELS
+# ============================================
 *.pt
-
-# Project specific data
-data/sensor/*.csv
-data/images/
-data/splits/
-backend/uploads/
-backend/saved_models/
-temp_data/
-notebooks/
-*.log
-
-# OS files
-.DS_Store
-Thumbs.db
-*.swp
-
-# Docker
-.docker/
-docker-compose.override.yml
-
-# AI/ML artifacts
+*.pth
 *.onnx
 *.pb
 *.tflite
+*.pkl
+*.pickle
+*.h5
+*.joblib
+*.model
+models/*.pt
+models/*.pth
+backend/saved_models/*.pt
+backend/saved_models/*.pth
+saved_models/*.pt
+saved_models/*.pth
+backend/backend/saved_models/
 
-# Temporary files
+# ============================================
+# DATA FILES
+# ============================================
+# Structure kept but content ignored
+data/images/train/**/*.jpg
+data/images/train/**/*.png
+data/images/train/**/*.jpeg
+data/images/validation/**/*.jpg
+data/images/validation/**/*.png
+data/images/validation/**/*.jpeg
+data/images/test/**/*.jpg
+data/images/test/**/*.png
+data/images/test/**/*.jpeg
+data/sensor/**/*.csv
+data/splits/
+temp_data/
+backend/uploads/
+
+# ============================================
+# JUPYTER NOTEBOOKS
+# ============================================
+.ipynb_checkpoints/
+*.ipynb
+notebooks/.ipynb_checkpoints/
+notebooks/**/checkpoint/
+
+# ============================================
+# BUILD & DIST
+# ============================================
+dist/
+build/
+*.dist-info/
+*.whl
+*.egg
+*.jar
+
+# ============================================
+# DOCKER
+# ============================================
+.docker/
+docker-compose.override.yml
+.dockerignore
+
+# ============================================
+# TEMPORARY & BACKUP FILES
+# ============================================
 *.tmp
 *.bak
+*.backup
+*.orig
+*.orig-*
 *~
 .#*
+temp/
+tmp/
 
-# Git rewrite temp directory
+# ============================================
+# OS SPECIFIC
+# ============================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# ============================================
+# PROJECT SPECIFIC
+# ============================================
+# Old/archived documentation (in docs/archive/)
+/COMPLETE_IMPLEMENTATION_REPORT.md
+/SECURITY_AUDIT.md
+/SECURITY_REMEDIATION_PLAN.md
+/QUICK_FIX.md
+/QUICK_START_CREDENTIAL_ROTATION.md
+/SECRETS_MANAGEMENT_GUIDE.md
+/SECRETS_ROTATION_CHECKLIST.md
+
+# Process managers
+.pm2/
+pm2.log
+logs/
+
+# Git
 .git-rewrite/
+.git/
+.gitignore
+
+# Archives  
+*.tar.gz
+*.tar
+*.zip
+*.rar
+*.7z
+
+# ============================================
+# CI/CD
+# ============================================
+.github/workflows/*.log
+.gitlab-ci.yml.swp
+.travis.yml.swp
 
