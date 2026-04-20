@@ -5,7 +5,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, AreaChart, Area, XAxis, YAxis
 import { motion } from 'framer-motion'
 import { SkeletonCard, SkeletonChart } from './ui/SkeletonLoader'
 import api from '../api'
-import { getSessionId } from '../utils/sessionManager'
+import { useAuth } from '../context/AuthContext'
 
 /* ═══════════════════════════════════════════
    DESIGN TOKENS
@@ -61,7 +61,7 @@ function Dashboard() {
   const [trendData, setTrendData] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [userId] = useState(getSessionId())
+  const { user } = useAuth()
 
   useEffect(() => {
     fetchStats()
@@ -73,12 +73,12 @@ function Dashboard() {
       fetchTrendData()
     }, 10000)
     return () => clearInterval(interval)
-  }, [userId])
+  }, [user])
 
   const fetchStats = async () => {
     try {
       setLoading(false)  // Don't show loading spinner on refresh
-      const response = await api.getDashboardStats(userId)
+      const response = await api.getDashboardStats()
       setStats(response.data)
       setError(null)
     } catch (err) {
@@ -87,7 +87,7 @@ function Dashboard() {
         total_reports: 0, total_sensor_analyses: 0, total_image_analyses: 0,
         healthy_count: 0, minor_damage_count: 0, severe_damage_count: 0,
         recent_analyses: [],
-        user_id: userId
+        user_id: null
       })
     } finally { 
       if (loading) setLoading(false) 
@@ -96,7 +96,7 @@ function Dashboard() {
 
   const fetchTrendData = async () => {
     try {
-      const response = await api.getDashboardTrend(userId)
+      const response = await api.getDashboardTrend()
       if (response.data.trend_data && response.data.trend_data.length > 0) {
         setTrendData(response.data.trend_data)
       } else {

@@ -17,10 +17,19 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const initAuth = async () => {
       try {
-        // Allow direct access without authentication
-        setUser({ email: 'guest@buildguard.local', is_admin: false })
+        // Check if user is already logged in
+        if (AuthService.isAuthenticated()) {
+          const currentUser = await AuthService.getCurrentUser()
+          if (currentUser) {
+            setUser(currentUser)
+          } else {
+            // Token exists but user fetch failed, logout
+            AuthService.logout()
+          }
+        }
       } catch (err) {
-        console.error('Failed to initialize:', err)
+        console.error('Failed to initialize auth:', err)
+        AuthService.logout()
       } finally {
         setLoading(false)
       }

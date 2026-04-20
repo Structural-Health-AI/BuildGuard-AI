@@ -19,9 +19,11 @@ from fastapi.security.http import HTTPAuthorizationCredentials
 from api.sensor_routes import router as sensor_router
 from api.image_routes import router as image_router
 from api.report_routes import router as report_router
+from api.dependencies import get_current_user
 from core.config import get_settings
 from core.security import TokenManager
 from database import init_database, SessionLocal, get_db
+from models.user_model import User
 from sqlalchemy.orm import Session
 
 
@@ -305,85 +307,53 @@ async def get_demo_token():
 
 @app.get("/api/dashboard/stats")
 @limiter.limit("30/minute")
-async def get_dashboard_stats(request: Request, user_id: str = None, db: Session = Depends(get_db)):
+async def get_dashboard_stats(request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """
-    Get dashboard statistics filtered by user ID
+    Get dashboard statistics for the current authenticated user
     
-    **Security Note:** This endpoint shows only the current user's data and rate limits requests.
-    Pass user_id as query parameter to filter by user.
+    **Security Note:** Only returns the current user's data. Requires authentication.
     """
     from models.user_model import SensorPrediction, Report, ImageAnalysis
     
-    # Get user_id from query parameter if not provided
-    if not user_id:
-        user_id = request.query_params.get("user_id")
+    # Get user_id from authenticated user
+    user_id = str(current_user.id)
 
-    # Build queries with ORM
-    if user_id:
-        total_reports = db.query(Report).filter(Report.user_id == user_id).count()
-        total_sensor = db.query(SensorPrediction).filter(SensorPrediction.user_id == user_id).count()
-        total_image = db.query(ImageAnalysis).filter(ImageAnalysis.user_id == user_id).count()
-        
-        healthy = db.query(SensorPrediction).filter(
-            SensorPrediction.user_id == user_id,
-            SensorPrediction.damage_level == "healthy"
-        ).count()
-        
-        minor = db.query(SensorPrediction).filter(
-            SensorPrediction.user_id == user_id,
-            SensorPrediction.damage_level == "minor_damage"
-        ).count()
-        
-        severe = db.query(SensorPrediction).filter(
-            SensorPrediction.user_id == user_id,
-            SensorPrediction.damage_level == "severe_damage"
-        ).count()
-        
-        image_damage_count = db.query(ImageAnalysis).filter(
-            ImageAnalysis.user_id == user_id,
-            ImageAnalysis.damage_detected == 1
-        ).count()
-    else:
-        total_reports = db.query(Report).count()
-        total_sensor = db.query(SensorPrediction).count()
-        total_image = db.query(ImageAnalysis).count()
-        
-        healthy = db.query(SensorPrediction).filter(
-            SensorPrediction.damage_level == "healthy"
-        ).count()
-        
-        minor = db.query(SensorPrediction).filter(
-            SensorPrediction.damage_level == "minor_damage"
-        ).count()
-        
-        severe = db.query(SensorPrediction).filter(
-            SensorPrediction.damage_level == "severe_damage"
-        ).count()
-        
-        image_damage_count = db.query(ImageAnalysis).filter(
-            ImageAnalysis.damage_detected == 1
-        ).count()
+    # Build queries with ORM - only for the authenticated user
+    total_reports = db.query(Report).filter(Report.user_id == user_id).count()
+    total_sensor = db.query(SensorPrediction).filter(SensorPrediction.user_id == user_id).count()
+    total_image = db.query(ImageAnalysis).filter(ImageAnalysis.user_id == user_id).count()
+    
+    healthy = db.query(SensorPrediction).filter(
+        SensorPrediction.user_id == user_id,
+        SensorPrediction.damage_level == "healthy"
+    ).count()
+    
+    minor = db.query(SensorPrediction).filter(
+        SensorPrediction.user_id == user_id,
+        SensorPrediction.damage_level == "minor_damage"
+    ).count()
+    
+    severe = db.query(SensorPrediction).filter(
+        SensorPrediction.user_id == user_id,
+        SensorPrediction.damage_level == "severe_damage"
+    ).count()
+    
+    image_damage_count = db.query(ImageAnalysis).filter(
+        ImageAnalysis.user_id == user_id,
+        ImageAnalysis.damage_detected == 1
+    ).count()
     
     # Add image damage count to severe
     severe = severe + image_damage_count
 
-    # Get recent analyses
-    if user_id:
-        sensor_recent = db.query(SensorPrediction).filter(
-            SensorPrediction.user_id == user_id
-        ).order_by(SensorPrediction.created_at.desc()).limit(10).all()
-        
-        image_recent = db.query(ImageAnalysis).filter(
-            ImageAnalysis.user_id == user_id
-        ).order_by(ImageAnalysis.created_at.desc()).limit(10).all()
-    else:
-        sensor_recent = db.query(SensorPrediction).order_by(
-            SensorPrediction.created_at.desc()
-        ).limit(10).all()
-        
-        image_recent = db.query(ImageAnalysis).order_by(
-            ImageAnalysis.created_at.desc()
-        ).limit(10).all()
+    # Get recent analyses for the current user
+    sensor_recent = db.query(SensorPrediction).filter(
+        SensorPrediction.user_id == user_id
+    ).order_by(SensorPrediction.created_at.desc()).limit(10).all()
+    
+    image_recent = db.query(ImageAnalysis).filter(
+        ImageAnalysis.user_id == user_id
+    ).order_by(ImageAnalysis.created_at.desc()).limit(10).all()
 
     # Combine and sort recent analyses
     recent_analyses = []
@@ -412,23 +382,26 @@ async def get_dashboard_stats(request: Request, user_id: str = None, db: Session
         "minor_damage_count": minor,
         "severe_damage_count": severe,
         "recent_analyses": recent_analyses,
-        "user_id": user_id if user_id else "anonymous"
+        "user_id": user_id,
+        "user_email": current_user.email
     }
 
 
 @app.get("/api/dashboard/trend")
 @limiter.limit("30/minute")
-async def get_dashboard_trend(request: Request, user_id: str = None, db: Session = Depends(get_db)):
+async def get_dashboard_trend(request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """
     Get trend data (last 6 months) for dashboard charts
-    Aggregates sensor predictions by damage level
+    Aggregates sensor predictions by damage level for the current authenticated user
+    
+    **Security Note:** Only returns the current user's data. Requires authentication.
     """
     from models.user_model import SensorPrediction
     from datetime import timedelta
     from sqlalchemy import func, and_
     
-    if not user_id:
-        user_id = request.query_params.get("user_id")
+    # Get user_id from authenticated user
+    user_id = str(current_user.id)
     
     # Calculate date 6 months ago
     six_months_ago = datetime.now() - timedelta(days=180)
@@ -476,7 +449,8 @@ async def get_dashboard_trend(request: Request, user_id: str = None, db: Session
 
     return {
         "trend_data": trend_data,
-        "user_id": user_id if user_id else "anonymous"
+        "user_id": user_id,
+        "user_email": current_user.email
     }
 
 

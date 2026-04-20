@@ -2,20 +2,41 @@ import axios from 'axios'
 
 const API_BASE = '/api'
 
+// Add axios interceptor to include JWT token in all requests
+axios.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('access_token')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
+    return config
+  },
+  (error) => Promise.reject(error)
+)
+
+// Handle 401 errors (unauthorized)
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Clear invalid token
+      localStorage.removeItem('access_token')
+      localStorage.removeItem('refresh_token')
+      // Redirect to login if needed
+      window.location.href = '/login'
+    }
+    return Promise.reject(error)
+  }
+)
+
 export const api = {
   // Dashboard
-  getDashboardStats: (userId) => {
-    const url = userId 
-      ? `${API_BASE}/dashboard/stats?user_id=${encodeURIComponent(userId)}`
-      : `${API_BASE}/dashboard/stats`
-    return axios.get(url)
+  getDashboardStats: () => {
+    return axios.get(`${API_BASE}/dashboard/stats`)
   },
 
-  getDashboardTrend: (userId) => {
-    const url = userId
-      ? `${API_BASE}/dashboard/trend?user_id=${encodeURIComponent(userId)}`
-      : `${API_BASE}/dashboard/trend`
-    return axios.get(url)
+  getDashboardTrend: () => {
+    return axios.get(`${API_BASE}/dashboard/trend`)
   },
 
   // Sensor Analysis
