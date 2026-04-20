@@ -6,6 +6,23 @@ This guide covers deployment procedures for BuildGuard-AI on DigitalOcean using 
 
 ---
 
+## Recent Updates
+
+### Dashboard Critical Alerts Fix (Latest)
+- **Issue**: Image analyses marked as critical weren't showing in dashboard critical alerts count
+- **Fix**: Dashboard now aggregates both sensor predictions and image analyses damage into critical count
+- **Deployment**: Restart backend application (no database migration needed)
+  ```bash
+  # PM2 deployment
+  pm2 restart buildguard-backend
+  
+  # Docker deployment
+  docker-compose restart backend
+  ```
+- **Impact**: Backward compatible, existing data will be correctly counted
+
+---
+
 ## Prerequisites
 
 - DigitalOcean Droplet (2GB RAM minimum, Ubuntu 22.04)
