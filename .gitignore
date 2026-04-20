@@ -80,8 +80,9 @@ Thumbs.db
 .settings/
 
 # ============================================
-# ENVIRONMENT & SECRETS
+# ENVIRONMENT & SECRETS - CRITICAL!
 # ============================================
+# NEVER commit these files - they contain sensitive credentials
 .env
 .env.local
 .env.*.local
@@ -96,6 +97,34 @@ credentials.json
 *.pem
 *.p12
 *.pfx
+.git-credentials
+~/.aws
+~/.azure
+~/.gcp
+~/.ssh
+.aws/
+.azure/
+.gcp/
+.ssh/
+# Deployment & sensitive files
+deploy-config.json
+deployment-secrets.json
+server-credentials.json
+/docker-compose.override.yml
+/docker-compose.prod.yml
+# API keys and tokens
+.tokens
+*.token
+api-key*
+access-token*
+refresh-token*
+# Database credentials (separate from actual .env)
+db-credentials*
+database-url*
+supabase-key*
+SECRETS_MANAGEMENT_GUIDE.md  # Reference only, actual secrets in .env
+*.password
+*.passwd
 
 # ============================================
 # DATABASES
