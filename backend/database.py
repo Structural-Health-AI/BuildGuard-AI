@@ -23,8 +23,23 @@ if "sqlite" in settings.database_url:
     )
 else:
     # PostgreSQL (Supabase) settings
+    # Force IPv4 to avoid issues with IPv6-blocked networks
+    connect_args = {
+        "keepalives": 1,
+        "keepalives_idle": 30,
+    }
+    
+    # Add socket family hint to prefer IPv4 on systems with IPv6
+    try:
+        import socket
+        # Try to get IPv4 address first
+        connect_args["family"] = socket.AF_INET
+    except:
+        pass
+    
     engine = create_engine(
         settings.database_url,
+        connect_args=connect_args,
         pool_pre_ping=True,  # Verify connections before using
         echo=False,
         pool_size=10,

@@ -11,10 +11,15 @@ if [ -f ".env" ]; then
     export $(cat .env | grep -v '^#' | xargs)
 fi
 
+# Force IPv4-only DNS for Supabase (fixes IPv6 connectivity issues)
+# This prevents psycopg2 from trying to resolve Supabase over IPv6
+export PSYCOPG2_DISABLE_IPV6=1
+
 # Display environment for debugging (safely - no passwords)
 echo "Backend starting with environment:"
 echo "  DATABASE_URL: ${DATABASE_URL:0:30}..."
 echo "  SECRET_KEY: ${SECRET_KEY:0:20}..."
+echo "  IPv6 disabled for psycopg2"
 echo ""
 
 # Start the uvicorn server
