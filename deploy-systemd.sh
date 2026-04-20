@@ -25,14 +25,27 @@ echo -e "${BLUE}║   DigitalOcean + Nginx + Supabase                    ║${NC
 echo -e "${BLUE}╚════════════════════════════════════════════════════════╝${NC}"
 echo ""
 
-# Step 1: Pull latest code
-echo -e "${YELLOW}Step 1: Pulling latest code from GitHub...${NC}"
+# Step 1: Install systemd service file
+echo -e "${YELLOW}Step 1: Installing systemd service file...${NC}"
+if [ -f "$PROJECT_PATH/scripts/deployment/buildguard.service" ]; then
+    cp "$PROJECT_PATH/scripts/deployment/buildguard.service" /etc/systemd/system/buildguard.service
+    systemctl daemon-reload
+    systemctl enable buildguard.service
+    echo -e "${GREEN}✓ Service file installed${NC}"
+else
+    echo -e "${RED}✗ Service file not found at $PROJECT_PATH/scripts/deployment/buildguard.service${NC}"
+    exit 1
+fi
+echo ""
+
+# Step 2: Pull latest code
+echo -e "${YELLOW}Step 2: Pulling latest code from GitHub...${NC}"
 cd "$PROJECT_PATH"
 git pull origin main
 echo -e "${GREEN}✓ Code pulled successfully${NC}"
 echo ""
 
-# Step 2: Activate virtualenv and update backend
+# Step 3: Activate virtualenv and update backend
 echo -e "${YELLOW}Step 2: Updating backend...${NC}"
 cd "$PROJECT_PATH/backend"
 
@@ -51,8 +64,8 @@ deactivate
 echo -e "${GREEN}✓ Backend updated${NC}"
 echo ""
 
-# Step 3: Update frontend
-echo -e "${YELLOW}Step 3: Building frontend...${NC}"
+# Step 4: Update frontend
+echo -e "${YELLOW}Step 4: Building frontend...${NC}"
 cd "$PROJECT_PATH/frontend"
 
 echo "  Installing npm dependencies..."
@@ -64,15 +77,15 @@ npm run build
 echo -e "${GREEN}✓ Frontend built${NC}"
 echo ""
 
-# Step 4: Stop backend service
-echo -e "${YELLOW}Step 4: Stopping backend service...${NC}"
+# Step 5: Stop backend service
+echo -e "${YELLOW}Step 5: Stopping backend service...${NC}"
 systemctl stop buildguard.service || true
 sleep 2
 echo -e "${GREEN}✓ Backend stopped${NC}"
 echo ""
 
-# Step 5: Start backend service
-echo -e "${YELLOW}Step 5: Starting backend service...${NC}"
+# Step 6: Start backend service
+echo -e "${YELLOW}Step 6: Starting backend service...${NC}"
 systemctl start buildguard.service
 sleep 3
 
@@ -86,15 +99,15 @@ else
 fi
 echo ""
 
-# Step 6: Reload nginx
-echo -e "${YELLOW}Step 6: Reloading nginx...${NC}"
+# Step 7: Reload nginx
+echo -e "${YELLOW}Step 7: Reloading nginx...${NC}"
 nginx -t
 systemctl reload nginx
 echo -e "${GREEN}✓ Nginx reloaded${NC}"
 echo ""
 
-# Step 7: Verify deployment
-echo -e "${YELLOW}Step 7: Verifying deployment...${NC}"
+# Step 8: Verify deployment
+echo -e "${YELLOW}Step 8: Verifying deployment...${NC}"
 
 sleep 2
 
@@ -131,7 +144,7 @@ fi
 
 echo ""
 
-# Step 8: Summary
+# Step 9: Summary
 echo -e "${GREEN}╔════════════════════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}║   ✓ Deployment Complete!                             ║${NC}"
 echo -e "${GREEN}╚════════════════════════════════════════════════════════╝${NC}"
