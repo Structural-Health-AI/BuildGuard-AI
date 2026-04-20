@@ -27,15 +27,8 @@ else:
     connect_args = {
         "keepalives": 1,
         "keepalives_idle": 30,
+        "family": 4,  # 4 = IPv4, 6 = IPv6. Force IPv4 for compatibility
     }
-    
-    # Add socket family hint to prefer IPv4 on systems with IPv6
-    try:
-        import socket
-        # Try to get IPv4 address first
-        connect_args["family"] = socket.AF_INET
-    except:
-        pass
     
     engine = create_engine(
         settings.database_url,
