@@ -351,6 +351,16 @@ async def get_dashboard_stats(request: Request, is_admin: bool = Depends(verify_
     cursor.execute(query, params)
     severe = cursor.fetchone()[0]
 
+    # Add image analyses with damage_detected = 1 to severe_damage_count (critical)
+    if where_clause:
+        query = f"SELECT COUNT(*) FROM image_analyses {where_clause} AND damage_detected = 1"
+        cursor.execute(query, params)
+    else:
+        cursor.execute("SELECT COUNT(*) FROM image_analyses WHERE damage_detected = 1")
+    
+    image_damage_count = cursor.fetchone()[0]
+    severe = severe + image_damage_count
+
     # Get recent analyses
     if session_id:
         cursor.execute("""
