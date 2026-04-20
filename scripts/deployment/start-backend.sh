@@ -6,9 +6,11 @@ set -e
 
 cd /var/www/BuildGuard-AI/backend
 
-# Load environment variables from .env file
+# Load environment variables from .env file (check both backend and project root)
 if [ -f ".env" ]; then
     export $(cat .env | grep -v '^#' | xargs)
+elif [ -f "../.env" ]; then
+    export $(cat ../.env | grep -v '^#' | xargs)
 fi
 
 # Force IPv4-only DNS for Supabase (fixes IPv6 connectivity issues)
