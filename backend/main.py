@@ -304,7 +304,7 @@ async def get_demo_token():
 
 @app.get("/api/dashboard/stats")
 @limiter.limit("30/minute")
-async def get_dashboard_stats(request: Request, is_admin: bool = Depends(verify_admin_token), session_id: str = None):
+async def get_dashboard_stats(request: Request, session_id: str = None):
     """
     Get dashboard statistics filtered by user session
     
@@ -499,6 +499,6 @@ if __name__ == "__main__":
     
     available_port = find_available_port(port)
     if available_port != port:
-        print(f"⚠ Port {port} already in use, using port {available_port} instead")
+        print(f"[WARNING] Port {port} already in use, using port {available_port} instead")
     
     uvicorn.run(app, host="0.0.0.0", port=available_port, reload=False)

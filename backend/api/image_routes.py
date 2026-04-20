@@ -15,10 +15,8 @@ from sqlalchemy.orm import Session
 
 from schemas.schemas import ImageAnalysisResponse
 from models.image_model import predict_image_damage_multiscale
-from models.user_model import User
 from core.config import get_settings
 from database import get_db
-from api.dependencies import get_current_user
 
 router = APIRouter()
 settings = get_settings()
@@ -40,8 +38,7 @@ async def analyze_image(
     request: Request,
     file: UploadFile = File(...),
     session_id: str = None,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     """
     Analyze an uploaded image for structural damage
@@ -98,7 +95,7 @@ async def analyze_image(
             (user_id, session_id, image_path, damage_detected, damage_type, confidence, recommendations)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         """, (
-            current_user.id,
+            None,
             session_id,
             file_path,
             1 if damage_detected else 0,
@@ -137,7 +134,7 @@ async def get_image_history(
     request: Request,
     limit: int = 50,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    session_id: str = None
 ):
     """Get history of image analyses"""
     conn = sqlite3.connect(DATABASE_PATH)
@@ -148,10 +145,10 @@ async def get_image_history(
         SELECT id, image_path, damage_detected, damage_type, confidence,
                recommendations, created_at
         FROM image_analyses
-        WHERE user_id = ? OR user_id IS NULL
+        WHERE user_id IS NULL
         ORDER BY created_at DESC
         LIMIT ?
-    """, (current_user.id, limit))
+    """, (limit,))
 
     rows = cursor.fetchall()
     conn.close()

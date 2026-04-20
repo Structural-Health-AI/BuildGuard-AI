@@ -29,8 +29,7 @@ async def predict_from_sensors(
     request: Request,
     data: SensorDataInput,
     session_id: str = None,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     """
     Analyze sensor data and predict structural health
@@ -58,7 +57,7 @@ async def predict_from_sensors(
 
         # Save to database using SQLAlchemy ORM
         db_prediction = SensorPrediction(
-            user_id=current_user.id,
+            user_id=None,
             session_id=session_id,
             accel_x=data.accel_x,
             accel_y=data.accel_y,
@@ -96,12 +95,10 @@ async def get_sensor_history(
     request: Request,
     limit: int = 50,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    session_id: str = None
 ):
-    """Get history of sensor predictions for current user"""
-    predictions = db.query(SensorPrediction).filter(
-        SensorPrediction.user_id == current_user.id
-    ).order_by(
+    """Get history of sensor predictions"""
+    predictions = db.query(SensorPrediction).order_by(
         SensorPrediction.created_at.desc()
     ).limit(limit).all()
 
@@ -131,8 +128,7 @@ async def get_sensor_history(
 async def get_sensor_prediction(
     request: Request,
     prediction_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     """Get a specific sensor prediction by ID"""
     prediction = db.query(SensorPrediction).filter(
@@ -141,10 +137,6 @@ async def get_sensor_prediction(
 
     if not prediction:
         raise HTTPException(status_code=404, detail="Prediction not found")
-    
-    # Check access control
-    if prediction.user_id != current_user.id and not current_user.is_admin:
-        raise HTTPException(status_code=403, detail="Not authorized to access this prediction")
 
     return {
         "id": prediction.id,
@@ -168,8 +160,7 @@ async def get_sensor_prediction(
 async def delete_sensor_prediction(
     request: Request,
     prediction_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     """Delete a sensor prediction"""
     prediction = db.query(SensorPrediction).filter(
@@ -178,10 +169,6 @@ async def delete_sensor_prediction(
 
     if not prediction:
         raise HTTPException(status_code=404, detail="Prediction not found")
-    
-    # Check access control
-    if prediction.user_id != current_user.id and not current_user.is_admin:
-        raise HTTPException(status_code=403, detail="Not authorized to delete this prediction")
 
     db.delete(prediction)
     db.commit()

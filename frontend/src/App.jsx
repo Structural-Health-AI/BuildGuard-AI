@@ -278,7 +278,7 @@ function AppShell() {
               exit={{ opacity: 0, y: -12 }}
               transition={{ duration: 0.3, ease: 'easeInOut' }}
             >
-              <Routes location={location}>
+            <Routes location={location}>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/image-analysis" element={<ImageUpload />} />
@@ -294,12 +294,12 @@ function AppShell() {
   )
 }
 
-/* ── Root App: Show LandingPage on /, AppShell for app pages ── */
+/* ── Root App: Landing page on home, AppShell for other routes ── */
 function App() {
   const location = useLocation()
-  const isLanding = location.pathname === '/'
+  const isHome = location.pathname === '/'
 
-  if (isLanding) {
+  if (isHome) {
     return <LandingPage />
   }
 

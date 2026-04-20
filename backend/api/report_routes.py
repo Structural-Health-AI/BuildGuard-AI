@@ -106,8 +106,7 @@ def check_report_ownership(report_id: int, user_id: int, is_admin: bool = False)
 async def create_report(
     request: Request,
     report: ReportCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     """
     Create a new structural health report
@@ -140,7 +139,7 @@ async def create_report(
             report.sensor_prediction_id,
             report.image_analysis_id,
             overall_status,
-            current_user.id,
+            None,
             now,
             now
         ))
@@ -172,8 +171,7 @@ async def list_reports(
     request: Request,
     skip: int = 0,
     limit: int = 50,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     """Get all reports with pagination"""
     conn = sqlite3.connect(DATABASE_PATH)
@@ -217,8 +215,7 @@ async def list_reports(
 async def get_report(
     request: Request,
     report_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     """Get a specific report with all linked analyses"""
     conn = sqlite3.connect(DATABASE_PATH)
@@ -231,9 +228,6 @@ async def get_report(
     if not row:
         conn.close()
         raise HTTPException(status_code=404, detail="Report not found")
-    
-    # Check access control
-    check_report_ownership(report_id, current_user.id, current_user.is_admin)
 
     report = dict(row)
 
@@ -273,8 +267,7 @@ async def update_report(
     request: Request,
     report_id: int,
     report: ReportCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     """Update an existing report"""
     conn = sqlite3.connect(DATABASE_PATH)
@@ -285,9 +278,6 @@ async def update_report(
     if not cursor.fetchone():
         conn.close()
         raise HTTPException(status_code=404, detail="Report not found")
-    
-    # Check access control
-    check_report_ownership(report_id, current_user.id, current_user.is_admin)
 
     # Determine new overall status
     overall_status = determine_overall_status(
@@ -344,15 +334,11 @@ async def update_report(
 async def delete_report(
     request: Request,
     report_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     """Delete a report"""
     conn = sqlite3.connect(DATABASE_PATH)
     cursor = conn.cursor()
-
-    # Check access control first
-    check_report_ownership(report_id, current_user.id, current_user.is_admin)
     
     cursor.execute("DELETE FROM reports WHERE id = ?", (report_id,))
 

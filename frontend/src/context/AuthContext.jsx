@@ -17,14 +17,10 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const initAuth = async () => {
       try {
-        if (AuthService.isAuthenticated()) {
-          const currentUser = await AuthService.getCurrentUser()
-          setUser(currentUser)
-        }
+        // Allow direct access without authentication
+        setUser({ email: 'guest@buildguard.local', is_admin: false })
       } catch (err) {
-        console.error('Failed to load user:', err)
-        setError(err.message)
-        AuthService.logout()
+        console.error('Failed to initialize:', err)
       } finally {
         setLoading(false)
       }

@@ -45,8 +45,35 @@ def get_db() -> Session:
 
 
 def init_database():
-    """Initialize database tables"""
+    """Initialize database tables and create test user if needed"""
     Base.metadata.create_all(bind=engine)
+    
+    # Create test user for development if it doesn't exist
+    db = SessionLocal()
+    try:
+        from models.user_model import User
+        from core.security import PasswordHasher
+        
+        test_email = "demo@buildguard.local"
+        existing_user = db.query(User).filter(User.email == test_email).first()
+        
+        if not existing_user:
+            hasher = PasswordHasher()
+            test_user = User(
+                email=test_email,
+                full_name="Demo User",
+                hashed_password=hasher.hash_password("Demo@123456"),
+                is_email_verified=True,
+                is_active=True,
+                is_admin=True
+            )
+            db.add(test_user)
+            db.commit()
+            print(f"✅ Created test user: {test_email} / Demo@123456")
+    except Exception as e:
+        print(f"⚠️  Could not create test user: {e}")
+    finally:
+        db.close()
 
 
 # Enable foreign keys for SQLite only
