@@ -22,18 +22,18 @@ if "sqlite" in settings.database_url:
         poolclass=StaticPool,
     )
 else:
-    # PostgreSQL (Supabase) settings
-    # Force IPv4 to avoid issues with IPv6-blocked networks
+    # PostgreSQL (Supabase) settings with psycopg3
+    # psycopg3 is installed via psycopg[binary] package
     connect_args = {
         "keepalives": 1,
         "keepalives_idle": 30,
-        "family": 4,  # 4 = IPv4, 6 = IPv6. Force IPv4 for compatibility
+        "server_settings": {"application_name": "buildguard"},
     }
     
     engine = create_engine(
         settings.database_url,
         connect_args=connect_args,
-        pool_pre_ping=True,  # Verify connections before using
+        pool_pre_ping=True,
         echo=False,
         pool_size=10,
         max_overflow=20,
