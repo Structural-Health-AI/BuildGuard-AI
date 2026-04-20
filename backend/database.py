@@ -22,14 +22,11 @@ if "sqlite" in settings.database_url:
         poolclass=StaticPool,
     )
 else:
-    # PostgreSQL (Supabase) settings with psycopg3
-    # psycopg3 is installed via psycopg[binary] package
-    # Force IPv4 to bypass IPv6 network issues on DigitalOcean
-    import socket
+    # PostgreSQL (Supabase) settings
+    # Using pooler endpoint which handles IPv4/IPv6 automatically
     connect_args = {
         "keepalives": 1,
         "keepalives_idle": 30,
-        "family": socket.AF_INET,  # Force IPv4 (socket.AF_INET = 2)
     }
     
     engine = create_engine(
