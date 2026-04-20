@@ -42,8 +42,8 @@ function ImageUpload() {
     if (!selectedFile) return
     try {
       setLoading(true); setError(null)
-      const sessionId = getSessionId()
-      const response = await api.analyzeImage(selectedFile, sessionId)
+      const userId = getSessionId()
+      const response = await api.analyzeImage(selectedFile, userId)
       setResult(response.data)
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to analyze image')

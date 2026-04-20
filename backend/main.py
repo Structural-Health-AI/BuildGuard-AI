@@ -21,7 +21,8 @@ from api.image_routes import router as image_router
 from api.report_routes import router as report_router
 from core.config import get_settings
 from core.security import TokenManager
-from database import init_database, SessionLocal
+from database import init_database, SessionLocal, get_db
+from sqlalchemy.orm import Session
 
 
 # Database setup
@@ -304,93 +305,104 @@ async def get_demo_token():
 
 @app.get("/api/dashboard/stats")
 @limiter.limit("30/minute")
-async def get_dashboard_stats(request: Request, session_id: str = None):
+async def get_dashboard_stats(request: Request, user_id: str = None, db: Session = Depends(get_db)):
     """
-    Get dashboard statistics filtered by user session
+    Get dashboard statistics filtered by user ID
     
-    **Security Note:** This endpoint now shows only current user's data and rate limits requests.
-    Pass session_id as query parameter to filter by user.
+    **Security Note:** This endpoint shows only the current user's data and rate limits requests.
+    Pass user_id as query parameter to filter by user.
     """
-    # Get session_id from query parameter if not provided
-    if not session_id:
-        session_id = request.query_params.get("session_id")
+    from models.user_model import SensorPrediction, Report, ImageAnalysis
     
-    conn = sqlite3.connect(DATABASE_PATH)
-    cursor = conn.cursor()
+    # Get user_id from query parameter if not provided
+    if not user_id:
+        user_id = request.query_params.get("user_id")
 
-    # Build WHERE clause for filtering by session/user
-    where_clause = ""
-    params = []
-    if session_id:
-        where_clause = "WHERE session_id = ?"
-        params = [session_id]
-
-    # Get counts
-    query = f"SELECT COUNT(*) FROM reports {where_clause}"
-    cursor.execute(query, params)
-    total_reports = cursor.fetchone()[0]
-
-    query = f"SELECT COUNT(*) FROM sensor_predictions {where_clause}"
-    cursor.execute(query, params)
-    total_sensor = cursor.fetchone()[0]
-
-    query = f"SELECT COUNT(*) FROM image_analyses {where_clause}"
-    cursor.execute(query, params)
-    total_image = cursor.fetchone()[0]
-
-    # Get damage level counts from sensor predictions
-    query = f"SELECT COUNT(*) FROM sensor_predictions {where_clause} AND damage_level = 'healthy'"
-    cursor.execute(query, params)
-    healthy = cursor.fetchone()[0]
-
-    query = f"SELECT COUNT(*) FROM sensor_predictions {where_clause} AND damage_level = 'minor_damage'"
-    cursor.execute(query, params)
-    minor = cursor.fetchone()[0]
-
-    query = f"SELECT COUNT(*) FROM sensor_predictions {where_clause} AND damage_level = 'severe_damage'"
-    cursor.execute(query, params)
-    severe = cursor.fetchone()[0]
-
-    # Add image analyses with damage_detected = 1 to severe_damage_count (critical)
-    if where_clause:
-        query = f"SELECT COUNT(*) FROM image_analyses {where_clause} AND damage_detected = 1"
-        cursor.execute(query, params)
+    # Build queries with ORM
+    if user_id:
+        total_reports = db.query(Report).filter(Report.user_id == user_id).count()
+        total_sensor = db.query(SensorPrediction).filter(SensorPrediction.user_id == user_id).count()
+        total_image = db.query(ImageAnalysis).filter(ImageAnalysis.user_id == user_id).count()
+        
+        healthy = db.query(SensorPrediction).filter(
+            SensorPrediction.user_id == user_id,
+            SensorPrediction.damage_level == "healthy"
+        ).count()
+        
+        minor = db.query(SensorPrediction).filter(
+            SensorPrediction.user_id == user_id,
+            SensorPrediction.damage_level == "minor_damage"
+        ).count()
+        
+        severe = db.query(SensorPrediction).filter(
+            SensorPrediction.user_id == user_id,
+            SensorPrediction.damage_level == "severe_damage"
+        ).count()
+        
+        image_damage_count = db.query(ImageAnalysis).filter(
+            ImageAnalysis.user_id == user_id,
+            ImageAnalysis.damage_detected == 1
+        ).count()
     else:
-        cursor.execute("SELECT COUNT(*) FROM image_analyses WHERE damage_detected = 1")
+        total_reports = db.query(Report).count()
+        total_sensor = db.query(SensorPrediction).count()
+        total_image = db.query(ImageAnalysis).count()
+        
+        healthy = db.query(SensorPrediction).filter(
+            SensorPrediction.damage_level == "healthy"
+        ).count()
+        
+        minor = db.query(SensorPrediction).filter(
+            SensorPrediction.damage_level == "minor_damage"
+        ).count()
+        
+        severe = db.query(SensorPrediction).filter(
+            SensorPrediction.damage_level == "severe_damage"
+        ).count()
+        
+        image_damage_count = db.query(ImageAnalysis).filter(
+            ImageAnalysis.damage_detected == 1
+        ).count()
     
-    image_damage_count = cursor.fetchone()[0]
+    # Add image damage count to severe
     severe = severe + image_damage_count
 
     # Get recent analyses
-    if session_id:
-        cursor.execute("""
-            SELECT 'sensor' as type, damage_level as status, created_at
-            FROM sensor_predictions
-            WHERE session_id = ?
-            UNION ALL
-            SELECT 'image' as type,
-                   CASE WHEN damage_detected = 1 THEN 'damage_detected' ELSE 'no_damage' END as status,
-                   created_at
-            FROM image_analyses
-            WHERE session_id = ?
-            ORDER BY created_at DESC
-            LIMIT 10
-        """, [session_id, session_id])
+    if user_id:
+        sensor_recent = db.query(SensorPrediction).filter(
+            SensorPrediction.user_id == user_id
+        ).order_by(SensorPrediction.created_at.desc()).limit(10).all()
+        
+        image_recent = db.query(ImageAnalysis).filter(
+            ImageAnalysis.user_id == user_id
+        ).order_by(ImageAnalysis.created_at.desc()).limit(10).all()
     else:
-        cursor.execute("""
-            SELECT 'sensor' as type, damage_level as status, created_at
-            FROM sensor_predictions
-            UNION ALL
-            SELECT 'image' as type,
-                   CASE WHEN damage_detected = 1 THEN 'damage_detected' ELSE 'no_damage' END as status,
-                   created_at
-            FROM image_analyses
-            ORDER BY created_at DESC
-            LIMIT 10
-        """)
-    recent = cursor.fetchall()
+        sensor_recent = db.query(SensorPrediction).order_by(
+            SensorPrediction.created_at.desc()
+        ).limit(10).all()
+        
+        image_recent = db.query(ImageAnalysis).order_by(
+            ImageAnalysis.created_at.desc()
+        ).limit(10).all()
 
-    conn.close()
+    # Combine and sort recent analyses
+    recent_analyses = []
+    for s in sensor_recent:
+        recent_analyses.append({
+            "type": "sensor",
+            "status": s.damage_level,
+            "created_at": s.created_at.isoformat() if s.created_at else None
+        })
+    for i in image_recent:
+        recent_analyses.append({
+            "type": "image",
+            "status": "damage_detected" if i.damage_detected else "no_damage",
+            "created_at": i.created_at.isoformat() if i.created_at else None
+        })
+    
+    # Sort by created_at descending and take top 10
+    recent_analyses.sort(key=lambda x: x["created_at"] or "", reverse=True)
+    recent_analyses = recent_analyses[:10]
 
     return {
         "total_reports": total_reports,
@@ -399,69 +411,61 @@ async def get_dashboard_stats(request: Request, session_id: str = None):
         "healthy_count": healthy,
         "minor_damage_count": minor,
         "severe_damage_count": severe,
-        "recent_analyses": [
-            {"type": r[0], "status": r[1], "created_at": r[2]} for r in recent
-        ],
-        "user_session": session_id if session_id else "global"
+        "recent_analyses": recent_analyses,
+        "user_id": user_id if user_id else "anonymous"
     }
 
 
 @app.get("/api/dashboard/trend")
 @limiter.limit("30/minute")
-async def get_dashboard_trend(request: Request, session_id: str = None):
+async def get_dashboard_trend(request: Request, user_id: str = None, db: Session = Depends(get_db)):
     """
     Get trend data (last 6 months) for dashboard charts
     Aggregates sensor predictions by damage level
     """
-    if not session_id:
-        session_id = request.query_params.get("session_id")
+    from models.user_model import SensorPrediction
+    from datetime import timedelta
+    from sqlalchemy import func, and_
     
-    conn = sqlite3.connect(DATABASE_PATH)
-    cursor = conn.cursor()
-
-    # Get trend data for last 6 months grouped by month and damage level
-    if session_id:
-        query = """
-            SELECT 
-                strftime('%Y-%m', created_at) as month,
-                damage_level,
-                COUNT(*) as count
-            FROM sensor_predictions
-            WHERE session_id = ?
-            AND created_at >= datetime('now', '-6 months')
-            GROUP BY strftime('%Y-%m', created_at), damage_level
-            ORDER BY month DESC
-        """
-        cursor.execute(query, [session_id])
-    else:
-        query = """
-            SELECT 
-                strftime('%Y-%m', created_at) as month,
-                damage_level,
-                COUNT(*) as count
-            FROM sensor_predictions
-            WHERE created_at >= datetime('now', '-6 months')
-            GROUP BY strftime('%Y-%m', created_at), damage_level
-            ORDER BY month DESC
-        """
-        cursor.execute(query)
+    if not user_id:
+        user_id = request.query_params.get("user_id")
     
-    rows = cursor.fetchall()
-    conn.close()
+    # Calculate date 6 months ago
+    six_months_ago = datetime.now() - timedelta(days=180)
+    
+    # Build query
+    query = db.query(
+        func.date_trunc('month', SensorPrediction.created_at).label('month'),
+        SensorPrediction.damage_level,
+        func.count().label('count')
+    )
+    
+    if user_id:
+        query = query.filter(SensorPrediction.user_id == user_id)
+    
+    query = query.filter(SensorPrediction.created_at >= six_months_ago)
+    query = query.group_by(
+        func.date_trunc('month', SensorPrediction.created_at),
+        SensorPrediction.damage_level
+    )
+    query = query.order_by(func.date_trunc('month', SensorPrediction.created_at).desc())
+    
+    rows = query.all()
 
     # Process data into charts format
     months_dict = {}
     for month, damage_level, count in rows:
-        if month not in months_dict:
-            months_dict[month] = {'month': month, 'healthy': 0, 'warning': 0, 'critical': 0}
+        month_str = month.strftime('%Y-%m') if month else 'unknown'
+        if month_str not in months_dict:
+            months_dict[month_str] = {'month': month_str, 'healthy': 0, 'warning': 0, 'critical': 0}
         
         # Map damage levels to chart categories
         if damage_level == 'healthy':
-            months_dict[month]['healthy'] = count
+            months_dict[month_str]['healthy'] = count
         elif damage_level == 'minor_damage':
-            months_dict[month]['warning'] = count
+            months_dict[month_str]['warning'] = count
         elif damage_level == 'severe_damage':
-            months_dict[month]['critical'] = count
+            months_dict[month_str]['critical'] = count
 
     # Convert to list and sort by month
     trend_data = sorted(months_dict.values(), key=lambda x: x['month'])
@@ -472,7 +476,7 @@ async def get_dashboard_trend(request: Request, session_id: str = None):
 
     return {
         "trend_data": trend_data,
-        "user_session": session_id if session_id else "global"
+        "user_id": user_id if user_id else "anonymous"
     }
 
 

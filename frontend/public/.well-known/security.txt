@@ -1,0 +1,6 @@
+Contact: security@build-guard.app
+Expires: 2026-12-31T23:59:59.000Z
+Preferred-Languages: en
+Canonical: https://build-guard.app/.well-known/security.txt
+Policy: https://build-guard.app/security-policy
+Acknowledgments: https://build-guard.app/security-acknowledgments

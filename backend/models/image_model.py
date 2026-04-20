@@ -124,8 +124,8 @@ def load_model():
         # Create model architecture
         _model = create_model_architecture()
         
-        # Load trained weights
-        state_dict = torch.load(MODEL_PATH, map_location=device)
+        # Load trained weights (weights_only=False for compatibility with older PyTorch models)
+        state_dict = torch.load(MODEL_PATH, map_location=device, weights_only=False)
         _model.load_state_dict(state_dict)
         
         # Move to device and set to evaluation mode
@@ -259,7 +259,9 @@ def predict_image_damage_multiscale(image_data: bytes, damage_threshold: float =
     device = get_device()
     
     if model is None:
-        return _get_fallback_prediction()
+        print(f"ERROR: Model failed to load from {MODEL_PATH}")
+        print(f"Model file exists: {os.path.exists(MODEL_PATH)}")
+        raise RuntimeError(f"Cannot perform image analysis: PyTorch model not found at {MODEL_PATH}")
     
     try:
         # Open and process image
@@ -329,22 +331,18 @@ def predict_image_damage_multiscale(image_data: bytes, damage_threshold: float =
 
 
 def _get_fallback_prediction():
-    """Fallback prediction when model unavailable"""
-    import random
-    damage_detected = random.random() > 0.5
-    if damage_detected:
-        damage_type = "damage"
-        confidence = random.uniform(0.6, 0.95)
-    else:
-        damage_type = None
-        confidence = random.uniform(0.7, 0.95)
+    """Fallback prediction when model unavailable - returns no damage by default"""
+    # Return a deterministic "no damage" prediction instead of random
+    damage_detected = False
+    damage_type = None
+    confidence = 0.95  # High confidence that no damage detected
     recommendations = get_damage_recommendations(damage_type, confidence)
     details = {
         'tile_predictions': [],
         'small_cracks_detected': False,
         'num_tiles': 0,
         'damaged_tiles': 0,
-        'full_image_damage_prob': confidence if damage_detected else 1 - confidence
+        'full_image_damage_prob': 0.95  # No damage probability
     }
     return damage_detected, damage_type, confidence, recommendations, details
 

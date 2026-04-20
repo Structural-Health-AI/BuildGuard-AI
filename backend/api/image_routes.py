@@ -3,7 +3,6 @@ Image Analysis API Routes
 Endpoints for image-based structural damage detection
 """
 import os
-import sqlite3
 import json
 import uuid
 from datetime import datetime
@@ -15,18 +14,12 @@ from sqlalchemy.orm import Session
 
 from schemas.schemas import ImageAnalysisResponse
 from models.image_model import predict_image_damage_multiscale
+from models.user_model import ImageAnalysis
 from core.config import get_settings
 from database import get_db
 
 router = APIRouter()
 settings = get_settings()
-
-# Get database path from settings or use default
-if "sqlite" in settings.database_url:
-    DATABASE_PATH = os.path.join(os.path.dirname(__file__), "..", "buildguard.db")
-else:
-    # For PostgreSQL, we'll use SQLAlchemy instead of sqlite3
-    DATABASE_PATH = None
 
 UPLOAD_DIR = "uploads"
 limiter = Limiter(key_func=get_remote_address)
@@ -37,7 +30,7 @@ limiter = Limiter(key_func=get_remote_address)
 async def analyze_image(
     request: Request,
     file: UploadFile = File(...),
-    session_id: str = None,
+    user_id: str = None,
     db: Session = Depends(get_db)
 ):
     """
@@ -51,11 +44,11 @@ async def analyze_image(
     
     **Rate Limit:** 10 requests per minute per IP
     **Max File Size:** 10MB
-    **session_id**: (Optional) User session ID for per-user analytics
+    **user_id**: (Optional) User ID for user-specific analytics
     """
-    # Get session_id from query parameter if not provided
-    if not session_id:
-        session_id = request.query_params.get("session_id")
+    # Get user_id from query parameter if not provided
+    if not user_id:
+        user_id = request.query_params.get("user_id")
     
     # Validate file type
     allowed_types = ["image/jpeg", "image/png", "image/jpg", "image/webp"]
@@ -86,31 +79,24 @@ async def analyze_image(
         # Get prediction using multi-scale detection
         damage_detected, damage_type, confidence, recommendations, details = predict_image_damage_multiscale(contents)
 
-        # Save to database with session tracking
-        conn = sqlite3.connect(DATABASE_PATH)
-        cursor = conn.cursor()
-
-        cursor.execute("""
-            INSERT INTO image_analyses
-            (user_id, session_id, image_path, damage_detected, damage_type, confidence, recommendations)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (
-            None,
-            session_id,
-            file_path,
-            1 if damage_detected else 0,
-            damage_type,
-            confidence,
-            json.dumps(recommendations)
-        ))
-
-        analysis_id = cursor.lastrowid
-        conn.commit()
-        conn.close()
+        # Save to database using SQLAlchemy ORM
+        db_analysis = ImageAnalysis(
+            user_id=user_id,
+            session_id=user_id,  # Keep for backward compatibility
+            image_path=file_path,
+            damage_detected=1 if damage_detected else 0,
+            damage_type=damage_type,
+            confidence=confidence,
+            recommendations=recommendations
+        )
+        
+        db.add(db_analysis)
+        db.commit()
+        db.refresh(db_analysis)
 
         # Prepare response with multi-scale details
         response_data = {
-            "id": analysis_id,
+            "id": db_analysis.id,
             "damage_detected": damage_detected,
             "damage_type": damage_type,
             "confidence": confidence,
@@ -134,82 +120,104 @@ async def get_image_history(
     request: Request,
     limit: int = 50,
     db: Session = Depends(get_db),
-    session_id: str = None
+    user_id: str = None
 ):
-    """Get history of image analyses"""
-    conn = sqlite3.connect(DATABASE_PATH)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        SELECT id, image_path, damage_detected, damage_type, confidence,
-               recommendations, created_at
-        FROM image_analyses
-        WHERE user_id IS NULL
-        ORDER BY created_at DESC
-        LIMIT ?
-    """, (limit,))
-
-    rows = cursor.fetchall()
-    conn.close()
+    """Get history of image analyses for the current user"""
+    # Get user_id from query parameter if not provided
+    if not user_id:
+        user_id = request.query_params.get("user_id")
+    
+    # Filter by user_id if provided
+    query = db.query(ImageAnalysis)
+    if user_id:
+        query = query.filter(ImageAnalysis.user_id == user_id)
+    
+    analyses = query.order_by(
+        ImageAnalysis.created_at.desc()
+    ).limit(limit).all()
 
     results = []
-    for row in rows:
-        item = dict(row)
-        item['damage_detected'] = bool(item['damage_detected'])
-        item['recommendations'] = json.loads(item['recommendations']) if item['recommendations'] else []
-        results.append(item)
+    for analysis in analyses:
+        results.append({
+            "id": analysis.id,
+            "image_path": analysis.image_path,
+            "damage_detected": bool(analysis.damage_detected),
+            "damage_type": analysis.damage_type,
+            "confidence": analysis.confidence,
+            "recommendations": analysis.recommendations or [],
+            "created_at": analysis.created_at
+        })
 
     return results
 
 
 @router.get("/{analysis_id}")
-async def get_image_analysis(analysis_id: int):
+@router.get("/{analysis_id}")
+async def get_image_analysis(
+    analysis_id: int,
+    user_id: str = None,
+    request: Request = None,
+    db: Session = Depends(get_db)
+):
     """Get a specific image analysis by ID"""
-    conn = sqlite3.connect(DATABASE_PATH)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
+    # Get user_id from query parameter if not provided
+    if not user_id and request:
+        user_id = request.query_params.get("user_id")
+    
+    analysis = db.query(ImageAnalysis).filter(
+        ImageAnalysis.id == analysis_id
+    ).first()
 
-    cursor.execute("SELECT * FROM image_analyses WHERE id = ?", (analysis_id,))
-
-    row = cursor.fetchone()
-    conn.close()
-
-    if not row:
+    if not analysis:
         raise HTTPException(status_code=404, detail="Analysis not found")
+    
+    # Check user ownership
+    if user_id and analysis.user_id != user_id:
+        raise HTTPException(status_code=403, detail="Access denied - this analysis belongs to another user")
 
-    result = dict(row)
-    result['damage_detected'] = bool(result['damage_detected'])
-    result['recommendations'] = json.loads(result['recommendations']) if result['recommendations'] else []
-
-    return result
+    return {
+        "id": analysis.id,
+        "image_path": analysis.image_path,
+        "damage_detected": bool(analysis.damage_detected),
+        "damage_type": analysis.damage_type,
+        "confidence": analysis.confidence,
+        "recommendations": analysis.recommendations or [],
+        "created_at": analysis.created_at
+    }
 
 
 @router.delete("/{analysis_id}")
-async def delete_image_analysis(analysis_id: int):
+async def delete_image_analysis(
+    analysis_id: int,
+    user_id: str = None,
+    request: Request = None,
+    db: Session = Depends(get_db)
+):
     """Delete an image analysis and its associated file"""
-    conn = sqlite3.connect(DATABASE_PATH)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
+    # Get user_id from query parameter if not provided
+    if not user_id and request:
+        user_id = request.query_params.get("user_id")
+    
+    analysis = db.query(ImageAnalysis).filter(
+        ImageAnalysis.id == analysis_id
+    ).first()
 
-    # Get file path first
-    cursor.execute("SELECT image_path FROM image_analyses WHERE id = ?", (analysis_id,))
-    row = cursor.fetchone()
-
-    if not row:
-        conn.close()
+    if not analysis:
         raise HTTPException(status_code=404, detail="Analysis not found")
+    
+    # Check user ownership
+    if user_id and analysis.user_id != user_id:
+        raise HTTPException(status_code=403, detail="Access denied - cannot delete another user's analysis")
 
     # Delete file if exists
-    if row['image_path'] and os.path.exists(row['image_path']):
+    if analysis.image_path and os.path.exists(analysis.image_path):
         try:
-            os.remove(row['image_path'])
+            os.remove(analysis.image_path)
         except OSError:
             pass  # Ignore file deletion errors
 
     # Delete from database
-    cursor.execute("DELETE FROM image_analyses WHERE id = ?", (analysis_id,))
-    conn.commit()
-    conn.close()
+    db.delete(analysis)
+    db.commit()
 
     return {"message": "Analysis deleted successfully"}

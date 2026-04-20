@@ -41,14 +41,14 @@ function SensorInput() {
     }
     try {
       setLoading(true); setError(null)
-      const sessionId = getSessionId()
+      const userId = getSessionId()
       const payload = {
         accel_x: parseFloat(formData.accel_x), accel_y: parseFloat(formData.accel_y),
         accel_z: parseFloat(formData.accel_z), strain: parseFloat(formData.strain),
         temperature: parseFloat(formData.temperature),
         building_name: formData.building_name || null, location: formData.location || null
       }
-      const response = await api.predictSensor(payload, sessionId)
+      const response = await api.predictSensor(payload, userId)
       setResult(response.data)
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to analyze sensor data')

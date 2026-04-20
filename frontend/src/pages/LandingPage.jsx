@@ -1258,15 +1258,51 @@ function Footer() {
 
         {/* Bottom bar */}
         <div
-          className="mt-10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3"
+          className="mt-10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-6"
           style={{ borderTop: `1px solid ${T.border}` }}
         >
-          <p className="text-[10px]" style={{ color: T.textMuted }}>
-            © {new Date().getFullYear()} BuildGuard AI. All rights reserved.
-          </p>
-          <p className="text-[10px]" style={{ color: T.textMuted }}>
-            Built for structural safety. Not a substitute for professional engineering advice.
-          </p>
+          <div className="flex flex-col gap-3">
+            <p className="text-[10px]" style={{ color: T.textMuted }}>
+              © {new Date().getFullYear()} BuildGuard AI. All rights reserved.
+            </p>
+            <p className="text-[10px]" style={{ color: T.textMuted }}>
+              Built for structural safety. Not a substitute for professional engineering advice.
+            </p>
+          </div>
+          
+          {/* SSL Security Badges */}
+          <div className="flex items-center gap-3 flex-wrap justify-center">
+            {/* SSL Labs Badge */}
+            <a
+              href="https://www.ssllabs.com/ssltest/analyze.html?d=build-guard.app&latest"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="SSL Labs A-rated secure site"
+              className="transition-transform hover:scale-110"
+            >
+              <img
+                src="https://www.ssllabs.com/images/ssllabs-domain-small.png"
+                alt="SSL Labs A+ Rating"
+                className="h-8"
+              />
+            </a>
+            
+            {/* HTTPS Badge */}
+            <div
+              className="px-2 py-1 rounded border text-[8px] font-semibold uppercase tracking-wide flex items-center gap-1"
+              style={{ borderColor: T.terra, background: 'rgba(194, 100, 74, 0.05)', color: T.terra }}
+            >
+              <span>🔒 HTTPS</span>
+            </div>
+            
+            {/* TLS 1.3 Badge */}
+            <div
+              className="px-2 py-1 rounded border text-[8px] font-semibold uppercase tracking-wide"
+              style={{ borderColor: '#10B981', background: 'rgba(16, 185, 129, 0.05)', color: '#10B981' }}
+            >
+              TLS 1.3
+            </div>
+          </div>
         </div>
       </div>
     </footer>

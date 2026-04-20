@@ -4,72 +4,102 @@ const API_BASE = '/api'
 
 export const api = {
   // Dashboard
-  getDashboardStats: (sessionId) => {
-    const url = sessionId 
-      ? `${API_BASE}/dashboard/stats?session_id=${encodeURIComponent(sessionId)}`
+  getDashboardStats: (userId) => {
+    const url = userId 
+      ? `${API_BASE}/dashboard/stats?user_id=${encodeURIComponent(userId)}`
       : `${API_BASE}/dashboard/stats`
     return axios.get(url)
   },
 
-  getDashboardTrend: (sessionId) => {
-    const url = sessionId
-      ? `${API_BASE}/dashboard/trend?session_id=${encodeURIComponent(sessionId)}`
+  getDashboardTrend: (userId) => {
+    const url = userId
+      ? `${API_BASE}/dashboard/trend?user_id=${encodeURIComponent(userId)}`
       : `${API_BASE}/dashboard/trend`
     return axios.get(url)
   },
 
   // Sensor Analysis
-  predictSensor: (data, sessionId) => {
-    const url = sessionId
-      ? `${API_BASE}/sensor/predict?session_id=${encodeURIComponent(sessionId)}`
+  predictSensor: (data, userId) => {
+    const url = userId
+      ? `${API_BASE}/sensor/predict?user_id=${encodeURIComponent(userId)}`
       : `${API_BASE}/sensor/predict`
     return axios.post(url, data)
   },
-  getSensorHistory: (limit = 50, sessionId) => {
-    const url = sessionId
-      ? `${API_BASE}/sensor/history?limit=${limit}&session_id=${encodeURIComponent(sessionId)}`
+  getSensorHistory: (limit = 50, userId) => {
+    const url = userId
+      ? `${API_BASE}/sensor/history?limit=${limit}&user_id=${encodeURIComponent(userId)}`
       : `${API_BASE}/sensor/history?limit=${limit}`
     return axios.get(url)
   },
-  getSensorPrediction: (id) => axios.get(`${API_BASE}/sensor/${id}`),
-  deleteSensorPrediction: (id) => axios.delete(`${API_BASE}/sensor/${id}`),
+  getSensorPrediction: (id, userId) => {
+    const url = userId
+      ? `${API_BASE}/sensor/${id}?user_id=${encodeURIComponent(userId)}`
+      : `${API_BASE}/sensor/${id}`
+    return axios.get(url)
+  },
+  deleteSensorPrediction: (id, userId) => {
+    const url = userId
+      ? `${API_BASE}/sensor/${id}?user_id=${encodeURIComponent(userId)}`
+      : `${API_BASE}/sensor/${id}`
+    return axios.delete(url)
+  },
 
   // Image Analysis
-  analyzeImage: (file, sessionId) => {
+  analyzeImage: (file, userId) => {
     const formData = new FormData()
     formData.append('file', file)
-    const url = sessionId
-      ? `${API_BASE}/image/analyze?session_id=${encodeURIComponent(sessionId)}`
+    const url = userId
+      ? `${API_BASE}/image/analyze?user_id=${encodeURIComponent(userId)}`
       : `${API_BASE}/image/analyze`
     return axios.post(url, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
   },
-  getImageHistory: (limit = 50, sessionId) => {
-    const url = sessionId
-      ? `${API_BASE}/image/history?limit=${limit}&session_id=${encodeURIComponent(sessionId)}`
+  getImageHistory: (limit = 50, userId) => {
+    const url = userId
+      ? `${API_BASE}/image/history?limit=${limit}&user_id=${encodeURIComponent(userId)}`
       : `${API_BASE}/image/history?limit=${limit}`
     return axios.get(url)
   },
-  getImageAnalysis: (id) => axios.get(`${API_BASE}/image/${id}`),
-  deleteImageAnalysis: (id) => axios.delete(`${API_BASE}/image/${id}`),
+  getImageAnalysis: (id, userId) => {
+    const url = userId
+      ? `${API_BASE}/image/${id}?user_id=${encodeURIComponent(userId)}`
+      : `${API_BASE}/image/${id}`
+    return axios.get(url)
+  },
+  deleteImageAnalysis: (id, userId) => {
+    const url = userId
+      ? `${API_BASE}/image/${id}?user_id=${encodeURIComponent(userId)}`
+      : `${API_BASE}/image/${id}`
+    return axios.delete(url)
+  },
 
   // Reports
-  createReport: (data, sessionId) => {
-    const url = sessionId
-      ? `${API_BASE}/reports/?session_id=${encodeURIComponent(sessionId)}`
+  createReport: (data, userId) => {
+    const url = userId
+      ? `${API_BASE}/reports/?user_id=${encodeURIComponent(userId)}`
       : `${API_BASE}/reports/`
     return axios.post(url, data)
   },
-  getReports: (skip = 0, limit = 50, sessionId) => {
-    const url = sessionId
-      ? `${API_BASE}/reports/?skip=${skip}&limit=${limit}&session_id=${encodeURIComponent(sessionId)}`
+  getReports: (skip = 0, limit = 50, userId) => {
+    const url = userId
+      ? `${API_BASE}/reports/?skip=${skip}&limit=${limit}&user_id=${encodeURIComponent(userId)}`
       : `${API_BASE}/reports/?skip=${skip}&limit=${limit}`
     return axios.get(url)
   },
-  getReport: (id) => axios.get(`${API_BASE}/reports/${id}`),
+  getReport: (id, userId) => {
+    const url = userId
+      ? `${API_BASE}/reports/${id}?user_id=${encodeURIComponent(userId)}`
+      : `${API_BASE}/reports/${id}`
+    return axios.get(url)
+  },
   updateReport: (id, data) => axios.put(`${API_BASE}/reports/${id}`, data),
-  deleteReport: (id) => axios.delete(`${API_BASE}/reports/${id}`),
+  deleteReport: (id, userId) => {
+    const url = userId
+      ? `${API_BASE}/reports/${id}?user_id=${encodeURIComponent(userId)}`
+      : `${API_BASE}/reports/${id}`
+    return axios.delete(url)
+  },
 }
 
 export default api

@@ -61,7 +61,7 @@ function Dashboard() {
   const [trendData, setTrendData] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [sessionId] = useState(getSessionId())
+  const [userId] = useState(getSessionId())
 
   useEffect(() => {
     fetchStats()
@@ -73,12 +73,12 @@ function Dashboard() {
       fetchTrendData()
     }, 10000)
     return () => clearInterval(interval)
-  }, [sessionId])
+  }, [userId])
 
   const fetchStats = async () => {
     try {
       setLoading(false)  // Don't show loading spinner on refresh
-      const response = await api.getDashboardStats(sessionId)
+      const response = await api.getDashboardStats(userId)
       setStats(response.data)
       setError(null)
     } catch (err) {
@@ -87,7 +87,7 @@ function Dashboard() {
         total_reports: 0, total_sensor_analyses: 0, total_image_analyses: 0,
         healthy_count: 0, minor_damage_count: 0, severe_damage_count: 0,
         recent_analyses: [],
-        user_session: sessionId
+        user_id: userId
       })
     } finally { 
       if (loading) setLoading(false) 
@@ -96,7 +96,7 @@ function Dashboard() {
 
   const fetchTrendData = async () => {
     try {
-      const response = await api.getDashboardTrend(sessionId)
+      const response = await api.getDashboardTrend(userId)
       if (response.data.trend_data && response.data.trend_data.length > 0) {
         setTrendData(response.data.trend_data)
       } else {

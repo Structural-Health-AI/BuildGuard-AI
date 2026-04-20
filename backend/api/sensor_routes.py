@@ -28,7 +28,7 @@ limiter = Limiter(key_func=get_remote_address)
 async def predict_from_sensors(
     request: Request,
     data: SensorDataInput,
-    session_id: str = None,
+    user_id: str = None,
     db: Session = Depends(get_db)
 ):
     """
@@ -37,14 +37,14 @@ async def predict_from_sensors(
     - **accel_x, accel_y, accel_z**: Accelerometer readings (m/s²)
     - **strain**: Strain gauge reading (microstrain)
     - **temperature**: Temperature (°C)
-    - **session_id**: (Optional) User session ID for per-user analytics
+    - **user_id**: (Optional) User ID for user-specific analytics
     
     **Rate Limit:** 20 requests per minute per IP
     """
     try:
-        # Get session_id from query parameter if not in body
-        if not session_id:
-            session_id = request.query_params.get("session_id")
+        # Get user_id from query parameter if not in body
+        if not user_id:
+            user_id = request.query_params.get("user_id")
         
         # Get prediction from model
         damage_level, confidence, recommendations = predict_sensor_health(
@@ -57,8 +57,8 @@ async def predict_from_sensors(
 
         # Save to database using SQLAlchemy ORM
         db_prediction = SensorPrediction(
-            user_id=None,
-            session_id=session_id,
+            user_id=user_id,
+            session_id=user_id,  # Keep for backward compatibility
             accel_x=data.accel_x,
             accel_y=data.accel_y,
             accel_z=data.accel_z,
@@ -95,10 +95,19 @@ async def get_sensor_history(
     request: Request,
     limit: int = 50,
     db: Session = Depends(get_db),
-    session_id: str = None
+    user_id: str = None
 ):
-    """Get history of sensor predictions"""
-    predictions = db.query(SensorPrediction).order_by(
+    """Get history of sensor predictions for the current user"""
+    # Get user_id from query parameter if not provided
+    if not user_id:
+        user_id = request.query_params.get("user_id")
+    
+    # Filter by user_id if provided
+    query = db.query(SensorPrediction)
+    if user_id:
+        query = query.filter(SensorPrediction.user_id == user_id)
+    
+    predictions = query.order_by(
         SensorPrediction.created_at.desc()
     ).limit(limit).all()
 
@@ -106,7 +115,7 @@ async def get_sensor_history(
     for pred in predictions:
         results.append({
             "id": pred.id,
-            "session_id": pred.session_id,
+            "user_id": pred.user_id,
             "accel_x": pred.accel_x,
             "accel_y": pred.accel_y,
             "accel_z": pred.accel_z,
@@ -128,19 +137,28 @@ async def get_sensor_history(
 async def get_sensor_prediction(
     request: Request,
     prediction_id: int,
+    user_id: str = None,
     db: Session = Depends(get_db)
 ):
     """Get a specific sensor prediction by ID"""
+    # Get user_id from query parameter if not provided
+    if not user_id:
+        user_id = request.query_params.get("user_id")
+    
     prediction = db.query(SensorPrediction).filter(
         SensorPrediction.id == prediction_id
     ).first()
 
     if not prediction:
         raise HTTPException(status_code=404, detail="Prediction not found")
+    
+    # Check user ownership
+    if user_id and prediction.user_id != user_id:
+        raise HTTPException(status_code=403, detail="Access denied - this prediction belongs to another user")
 
     return {
         "id": prediction.id,
-        "session_id": prediction.session_id,
+        "user_id": prediction.user_id,
         "accel_x": prediction.accel_x,
         "accel_y": prediction.accel_y,
         "accel_z": prediction.accel_z,
@@ -160,15 +178,24 @@ async def get_sensor_prediction(
 async def delete_sensor_prediction(
     request: Request,
     prediction_id: int,
+    user_id: str = None,
     db: Session = Depends(get_db)
 ):
     """Delete a sensor prediction"""
+    # Get user_id from query parameter if not provided
+    if not user_id:
+        user_id = request.query_params.get("user_id")
+    
     prediction = db.query(SensorPrediction).filter(
         SensorPrediction.id == prediction_id
     ).first()
 
     if not prediction:
         raise HTTPException(status_code=404, detail="Prediction not found")
+    
+    # Check user ownership
+    if user_id and prediction.user_id != user_id:
+        raise HTTPException(status_code=403, detail="Access denied - cannot delete another user's prediction")
 
     db.delete(prediction)
     db.commit()

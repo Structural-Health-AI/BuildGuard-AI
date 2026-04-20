@@ -100,7 +100,7 @@ class SensorPrediction(Base):
     __tablename__ = "sensor_predictions"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, nullable=True, index=True)  # Optional - for authenticated users
+    user_id = Column(String(255), nullable=True, index=True)  # Optional - for authenticated users
     session_id = Column(String(255), nullable=True, index=True)
     accel_x = Column(Float, nullable=False)
     accel_y = Column(Float, nullable=False)
@@ -116,3 +116,44 @@ class SensorPrediction(Base):
 
     def __repr__(self):
         return f"<SensorPrediction(id={self.id}, damage_level={self.damage_level}, confidence={self.confidence})>"
+
+
+class ImageAnalysis(Base):
+    """Image analysis results for structural damage detection"""
+
+    __tablename__ = "image_analyses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String(255), nullable=True, index=True)  # Optional - for authenticated users
+    session_id = Column(String(255), nullable=True, index=True)
+    image_path = Column(String(500), nullable=False)  # Path to uploaded image
+    damage_detected = Column(Integer, nullable=False, default=0)  # 0 or 1 (boolean-like)
+    damage_type = Column(String(100), nullable=True)  # Type of damage detected
+    confidence = Column(Float, nullable=False)
+    recommendations = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    def __repr__(self):
+        return f"<ImageAnalysis(id={self.id}, damage_detected={self.damage_detected}, confidence={self.confidence})>"
+
+
+class Report(Base):
+    """Structural health report combining sensor and image analyses"""
+
+    __tablename__ = "reports"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String(255), nullable=True, index=True)  # Optional - for authenticated users
+    session_id = Column(String(255), nullable=True, index=True)
+    building_name = Column(String(255), nullable=False)
+    location = Column(String(255), nullable=False)
+    inspector_name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    sensor_prediction_id = Column(Integer, nullable=True, index=True)
+    image_analysis_id = Column(Integer, nullable=True, index=True)
+    overall_status = Column(String(50), nullable=False)  # healthy, minor_damage, severe_damage
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+
+    def __repr__(self):
+        return f"<Report(id={self.id}, building_name={self.building_name}, overall_status={self.overall_status})>"
