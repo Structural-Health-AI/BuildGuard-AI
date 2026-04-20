@@ -24,9 +24,12 @@ if "sqlite" in settings.database_url:
 else:
     # PostgreSQL (Supabase) settings with psycopg3
     # psycopg3 is installed via psycopg[binary] package
+    # Force IPv4 to bypass IPv6 network issues on DigitalOcean
+    import socket
     connect_args = {
         "keepalives": 1,
         "keepalives_idle": 30,
+        "family": socket.AF_INET,  # Force IPv4 (socket.AF_INET = 2)
     }
     
     engine = create_engine(
