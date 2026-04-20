@@ -27,7 +27,6 @@ else:
     connect_args = {
         "keepalives": 1,
         "keepalives_idle": 30,
-        "server_settings": {"application_name": "buildguard"},
     }
     
     engine = create_engine(
