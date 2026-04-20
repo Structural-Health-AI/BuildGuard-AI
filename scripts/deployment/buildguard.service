@@ -4,19 +4,16 @@ After=network.target
 Wants=network-online.target
 
 [Service]
-Type=notify
+Type=simple
 User=root
 WorkingDirectory=/var/www/BuildGuard-AI/backend
 
-# Load environment variables from .env file
-EnvironmentFile=/var/www/BuildGuard-AI/backend/.env
-
-# Set additional environment variables
+# Set up the PATH to use virtualenv
 Environment="PATH=/var/www/BuildGuard-AI/backend/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 # Restart policy
 Restart=always
-RestartSec=5
+RestartSec=10
 StartLimitInterval=600
 StartLimitBurst=5
 
@@ -33,11 +30,8 @@ SyslogIdentifier=buildguard
 PrivateTmp=yes
 NoNewPrivileges=true
 
-# Start command
-ExecStart=/var/www/BuildGuard-AI/backend/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
-
-# Pre-start check
-ExecStartPre=/usr/bin/test -f /var/www/BuildGuard-AI/backend/.env
+# Use the startup script which loads .env file
+ExecStart=/bin/bash /var/www/BuildGuard-AI/scripts/deployment/start-backend.sh
 
 [Install]
 WantedBy=multi-user.target
