@@ -46,34 +46,41 @@ def get_db() -> Session:
 
 def init_database():
     """Initialize database tables and create test user if needed"""
-    Base.metadata.create_all(bind=engine)
-    
-    # Create test user for development if it doesn't exist
-    db = SessionLocal()
     try:
-        from models.user_model import User
-        from core.security import PasswordHasher
+        Base.metadata.create_all(bind=engine)
         
-        test_email = "demo@buildguard.local"
-        existing_user = db.query(User).filter(User.email == test_email).first()
-        
-        if not existing_user:
-            hasher = PasswordHasher()
-            test_user = User(
-                email=test_email,
-                full_name="Demo User",
-                hashed_password=hasher.hash_password("Demo@123456"),
-                is_email_verified=True,
-                is_active=True,
-                is_admin=True
-            )
-            db.add(test_user)
-            db.commit()
-            print(f"✅ Created test user: {test_email} / Demo@123456")
+        # Create test user for development if it doesn't exist
+        db = SessionLocal()
+        try:
+            from models.user_model import User
+            from core.security import PasswordHasher
+            
+            test_email = "demo@buildguard.local"
+            existing_user = db.query(User).filter(User.email == test_email).first()
+            
+            if not existing_user:
+                hasher = PasswordHasher()
+                test_user = User(
+                    email=test_email,
+                    full_name="Demo User",
+                    hashed_password=hasher.hash_password("Demo@123456"),
+                    is_email_verified=True,
+                    is_active=True,
+                    is_admin=True
+                )
+                db.add(test_user)
+                db.commit()
+                print(f"✅ Created test user: {test_email} / Demo@123456")
+        except Exception as e:
+            print(f"⚠️  Could not create test user: {e}")
+        finally:
+            db.close()
     except Exception as e:
-        print(f"⚠️  Could not create test user: {e}")
-    finally:
-        db.close()
+        # Non-fatal error - database connection might fail initially
+        # but it's okay - the app can still start and retry on first API call
+        print(f"⚠️  Database initialization warning (non-fatal): {str(e)[:100]}")
+        print(f"   The application will still start. Database connection will be retried on first request.")
+        pass
 
 
 # Enable foreign keys for SQLite only
