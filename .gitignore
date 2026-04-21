@@ -36,7 +36,21 @@ dmypy.json
 .pyre/
 *.log
 
-# Virtual Environments
+# ============================================
+# MACHINE LEARNING MODELS & DATA
+# ============================================
+# Large model files should not be in version control
+*.pth
+*.pkl
+*.joblib
+*.h5
+*.keras
+*.onnx
+saved_models/
+backend/saved_models/*.pth
+backend/saved_models/*.pkl
+temp_data/
+*.csv  # Large data files (keep small reference files manually if needed)
 venv/
 ENV/
 env/
@@ -56,9 +70,13 @@ yarn-error.log*
 .npm
 .eslintcache
 lerna-debug.log*
+package-lock.json
 frontend/node_modules/
 frontend/dist/
 frontend/.vite/
+frontend/package-lock.json
+frontend/dist.tar.gz
+frontend/dist.zip
 
 # ============================================
 # IDE & EDITOR
