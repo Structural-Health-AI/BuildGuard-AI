@@ -6,6 +6,7 @@ import { motion } from 'framer-motion'
 import { SkeletonCard, SkeletonChart } from './ui/SkeletonLoader'
 import api from '../api'
 import { useAuth } from '../context/AuthContext'
+import { getUserId } from '../utils/sessionManager'
 
 /* ═══════════════════════════════════════════
    DESIGN TOKENS
@@ -78,7 +79,7 @@ function Dashboard() {
   const fetchStats = async () => {
     try {
       setLoading(false)  // Don't show loading spinner on refresh
-      const response = await api.getDashboardStats()
+      const response = await api.getDashboardStats(getUserId())
       setStats(response.data)
       setError(null)
     } catch (err) {
@@ -96,7 +97,7 @@ function Dashboard() {
 
   const fetchTrendData = async () => {
     try {
-      const response = await api.getDashboardTrend()
+      const response = await api.getDashboardTrend(getUserId())
       if (response.data.trend_data && response.data.trend_data.length > 0) {
         setTrendData(response.data.trend_data)
       } else {

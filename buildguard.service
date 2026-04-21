@@ -1,0 +1,20 @@
+[Unit]
+Description=BuildGuard AI Backend
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/var/www/BuildGuard-AI/backend
+Environment=PATH=/var/www/BuildGuard-AI/backend/venv/bin
+EnvironmentFile=/var/www/BuildGuard-AI/.env
+ExecStart=/var/www/BuildGuard-AI/backend/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
+Restart=on-failure
+RestartSec=10s
+KillMode=mixed
+KillSignal=SIGTERM
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

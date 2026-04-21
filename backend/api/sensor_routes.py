@@ -15,7 +15,7 @@ from models.sensor_model import predict_sensor_health
 from models.user_model import User, SensorPrediction
 from core.config import get_settings
 from database import get_db
-from api.dependencies import get_current_user
+from api.dependencies import get_current_user_optional
 
 router = APIRouter()
 settings = get_settings()
@@ -28,23 +28,29 @@ limiter = Limiter(key_func=get_remote_address)
 async def predict_from_sensors(
     request: Request,
     data: SensorDataInput,
-    user_id: str = None,
+    user_id: str | None = None,
+    current_user: User | None = Depends(get_current_user_optional),
     db: Session = Depends(get_db)
 ):
     """
     Analyze sensor data and predict structural health
-
+    
+    Authentication is optional.
+    Priority: explicit query user_id -> authenticated user id -> device session id or "anonymous"
+    
     - **accel_x, accel_y, accel_z**: Accelerometer readings (m/s²)
     - **strain**: Strain gauge reading (microstrain)
     - **temperature**: Temperature (°C)
-    - **user_id**: (Optional) User ID for user-specific analytics
     
     **Rate Limit:** 20 requests per minute per IP
     """
     try:
-        # Get user_id from query parameter if not in body
-        if not user_id:
-            user_id = request.query_params.get("user_id")
+        # Priority: explicit query user_id -> request query param -> authenticated user -> anonymous
+        effective_user_id = (
+            user_id 
+            or request.query_params.get("user_id")
+            or (str(current_user.id) if current_user else "anonymous")
+        )
         
         # Get prediction from model
         damage_level, confidence, recommendations = predict_sensor_health(
@@ -57,8 +63,8 @@ async def predict_from_sensors(
 
         # Save to database using SQLAlchemy ORM
         db_prediction = SensorPrediction(
-            user_id=user_id,
-            session_id=user_id,  # Keep for backward compatibility
+            user_id=effective_user_id,
+            session_id=effective_user_id,  # Keep for backward compatibility
             accel_x=data.accel_x,
             accel_y=data.accel_y,
             accel_z=data.accel_z,

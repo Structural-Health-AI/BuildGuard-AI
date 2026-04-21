@@ -10,6 +10,7 @@ from core.security import TokenManager
 from database import get_db
 
 security = HTTPBearer()
+optional_security = HTTPBearer(auto_error=False)
 
 
 def get_current_user(
@@ -66,6 +67,38 @@ def get_current_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is inactive"
         )
+
+    return user
+
+
+def get_current_user_optional(
+    credentials = Depends(optional_security),
+    db: Session = Depends(get_db)
+) -> User | None:
+    """
+    Return authenticated user when a valid bearer token is present.
+    Return None when no/invalid token is provided.
+    """
+    if credentials is None:
+        return None
+
+    token = credentials.credentials
+    payload = TokenManager.verify_token(token, token_type="access")
+    if not payload:
+        return None
+
+    user_id_str = payload.get("sub")
+    if user_id_str is None:
+        return None
+
+    try:
+        user_id: int = int(user_id_str)
+    except (ValueError, TypeError):
+        return None
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or not user.is_active:
+        return None
 
     return user
 

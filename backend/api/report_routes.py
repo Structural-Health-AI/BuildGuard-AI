@@ -3,8 +3,6 @@ Report Management API Routes
 Endpoints for creating and managing structural health reports
 """
 import os
-import sqlite3
-import json
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, Request, Depends
 from typing import List
@@ -13,56 +11,43 @@ from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 
 from schemas.schemas import ReportCreate, ReportResponse, ReportListResponse, DamageLevel
-from models.user_model import User
+from models.user_model import User, Report, SensorPrediction, ImageAnalysis
 from core.config import get_settings
 from database import get_db
-from api.dependencies import get_current_user
+from api.dependencies import get_current_user, get_current_user_optional
 
 router = APIRouter()
 settings = get_settings()
 limiter = Limiter(key_func=get_remote_address)
 
-# Get database path from settings or use default
-if "sqlite" in settings.database_url:
-    DATABASE_PATH = os.path.join(os.path.dirname(__file__), "..", "buildguard.db")
-else:
-    # For PostgreSQL, we'll use SQLAlchemy instead of sqlite3
-    DATABASE_PATH = None
 
-
-def determine_overall_status(sensor_prediction_id: int = None, image_analysis_id: int = None) -> str:
+def determine_overall_status(sensor_prediction_id: int = None, image_analysis_id: int = None, db: Session = None) -> str:
     """Determine overall status based on sensor and image analysis results"""
-    conn = sqlite3.connect(DATABASE_PATH)
-    cursor = conn.cursor()
-
+    if db is None:
+        return "healthy"  # Default if no database session
+    
     statuses = []
 
     if sensor_prediction_id:
-        cursor.execute(
-            "SELECT damage_level FROM sensor_predictions WHERE id = ?",
-            (sensor_prediction_id,)
-        )
-        row = cursor.fetchone()
-        if row:
-            statuses.append(row[0])
+        sensor = db.query(SensorPrediction).filter(
+            SensorPrediction.id == sensor_prediction_id
+        ).first()
+        if sensor:
+            statuses.append(sensor.damage_level)
 
     if image_analysis_id:
-        cursor.execute(
-            "SELECT damage_detected, damage_type FROM image_analyses WHERE id = ?",
-            (image_analysis_id,)
-        )
-        row = cursor.fetchone()
-        if row:
-            if row[0]:  # damage_detected
-                damage_type = row[1]
+        image = db.query(ImageAnalysis).filter(
+            ImageAnalysis.id == image_analysis_id
+        ).first()
+        if image:
+            if image.damage_detected:
+                damage_type = image.damage_type
                 if damage_type == "structural_deformation":
                     statuses.append("severe_damage")
                 elif damage_type in ["crack", "spalling", "corrosion"]:
                     statuses.append("minor_damage")
             else:
                 statuses.append("healthy")
-
-    conn.close()
 
     # Return worst status
     if "severe_damage" in statuses:
@@ -75,90 +60,66 @@ def determine_overall_status(sensor_prediction_id: int = None, image_analysis_id
         return "healthy"  # Default if no analysis linked
 
 
-def check_report_ownership(report_id: int, user_id: int, is_admin: bool = False) -> bool:
-    """
-    Check if user owns the report or is admin
-    
-    Returns: True if user owns report or is admin
-    Raises: HTTPException if not authorized
-    """
-    conn = sqlite3.connect(DATABASE_PATH)
-    cursor = conn.cursor()
-    
-    cursor.execute("SELECT user_id FROM reports WHERE id = ?", (report_id,))
-    row = cursor.fetchone()
-    conn.close()
-    
-    if not row:
-        raise HTTPException(status_code=404, detail="Report not found")
-    
-    report_user_id = row[0]
-    
-    # Allow access if user owns it or is admin
-    if report_user_id == user_id or is_admin:
-        return True
-    
-    raise HTTPException(status_code=403, detail="Not authorized to access this report")
-
-
 @router.post("/", response_model=ReportResponse)
 @limiter.limit("15/minute")
 async def create_report(
     request: Request,
     report: ReportCreate,
+    user_id: str | None = None,
+    current_user: User | None = Depends(get_current_user_optional),
     db: Session = Depends(get_db)
 ):
     """
     Create a new structural health report
+    
+    Authentication is optional. If no user is authenticated, report is created under device session ID.
 
     Link sensor predictions and/or image analyses to create a comprehensive report.
     """
     try:
+        # Priority: explicit query user_id -> request query param -> authenticated user -> anonymous
+        effective_user_id = (
+            user_id
+            or request.query_params.get("user_id")
+            or (str(current_user.id) if current_user else "anonymous")
+        )
+        
         # Determine overall status from linked analyses
         overall_status = determine_overall_status(
             report.sensor_prediction_id,
-            report.image_analysis_id
+            report.image_analysis_id,
+            db
         )
 
-        now = datetime.now().isoformat()
-
-        conn = sqlite3.connect(DATABASE_PATH)
-        cursor = conn.cursor()
-
-        cursor.execute("""
-            INSERT INTO reports
-            (building_name, location, inspector_name, description,
-             sensor_prediction_id, image_analysis_id, overall_status,
-             user_id, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            report.building_name,
-            report.location,
-            report.inspector_name,
-            report.description,
-            report.sensor_prediction_id,
-            report.image_analysis_id,
-            overall_status,
-            None,
-            now,
-            now
-        ))
-
-        report_id = cursor.lastrowid
-        conn.commit()
-        conn.close()
-
-        return ReportResponse(
-            id=report_id,
+        # Use SQLAlchemy ORM instead of direct SQL
+        from models.user_model import Report
+        
+        db_report = Report(
+            user_id=effective_user_id,
             building_name=report.building_name,
             location=report.location,
             inspector_name=report.inspector_name,
             description=report.description,
             sensor_prediction_id=report.sensor_prediction_id,
             image_analysis_id=report.image_analysis_id,
+            overall_status=overall_status
+        )
+        
+        db.add(db_report)
+        db.commit()
+        db.refresh(db_report)
+
+        return ReportResponse(
+            id=db_report.id,
+            building_name=db_report.building_name,
+            location=db_report.location,
+            inspector_name=db_report.inspector_name,
+            description=db_report.description,
+            sensor_prediction_id=db_report.sensor_prediction_id,
+            image_analysis_id=db_report.image_analysis_id,
             overall_status=DamageLevel(overall_status),
-            created_at=datetime.fromisoformat(now),
-            updated_at=datetime.fromisoformat(now)
+            created_at=db_report.created_at,
+            updated_at=db_report.updated_at
         )
 
     except Exception as e:
@@ -171,40 +132,35 @@ async def list_reports(
     request: Request,
     skip: int = 0,
     limit: int = 50,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get all reports with pagination"""
-    conn = sqlite3.connect(DATABASE_PATH)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
+    """Get all reports for the authenticated user with pagination"""
+    from models.user_model import Report
+    
+    user_id = str(current_user.id)
+    
+    # Get total count for authenticated user
+    total = db.query(Report).filter(Report.user_id == user_id).count()
 
-    # Get total count
-    cursor.execute("SELECT COUNT(*) FROM reports")
-    total = cursor.fetchone()[0]
-
-    # Get paginated results
-    cursor.execute("""
-        SELECT * FROM reports
-        ORDER BY created_at DESC
-        LIMIT ? OFFSET ?
-    """, (limit, skip))
-
-    rows = cursor.fetchall()
-    conn.close()
+    # Get paginated results for authenticated user
+    db_reports = db.query(Report).filter(
+        Report.user_id == user_id
+    ).order_by(Report.created_at.desc()).offset(skip).limit(limit).all()
 
     reports = []
-    for row in rows:
+    for report in db_reports:
         reports.append(ReportResponse(
-            id=row['id'],
-            building_name=row['building_name'],
-            location=row['location'],
-            inspector_name=row['inspector_name'],
-            description=row['description'],
-            sensor_prediction_id=row['sensor_prediction_id'],
-            image_analysis_id=row['image_analysis_id'],
-            overall_status=DamageLevel(row['overall_status']),
-            created_at=datetime.fromisoformat(row['created_at']),
-            updated_at=datetime.fromisoformat(row['updated_at'])
+            id=report.id,
+            building_name=report.building_name,
+            location=report.location,
+            inspector_name=report.inspector_name,
+            description=report.description,
+            sensor_prediction_id=report.sensor_prediction_id,
+            image_analysis_id=report.image_analysis_id,
+            overall_status=DamageLevel(report.overall_status),
+            created_at=report.created_at,
+            updated_at=report.updated_at
         ))
 
     return ReportListResponse(reports=reports, total=total)
@@ -215,48 +171,64 @@ async def list_reports(
 async def get_report(
     request: Request,
     report_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get a specific report with all linked analyses"""
-    conn = sqlite3.connect(DATABASE_PATH)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
+    """Get a specific report with all linked analyses for the authenticated user"""
+    from models.user_model import Report, SensorPrediction, ImageAnalysis
+    
+    user_id = str(current_user.id)
+    
+    # Get the report and verify it belongs to the authenticated user
+    db_report = db.query(Report).filter(
+        Report.id == report_id,
+        Report.user_id == user_id
+    ).first()
 
-    cursor.execute("SELECT * FROM reports WHERE id = ?", (report_id,))
-    row = cursor.fetchone()
-
-    if not row:
-        conn.close()
+    if not db_report:
         raise HTTPException(status_code=404, detail="Report not found")
 
-    report = dict(row)
+    report = {
+        'id': db_report.id,
+        'building_name': db_report.building_name,
+        'location': db_report.location,
+        'inspector_name': db_report.inspector_name,
+        'description': db_report.description,
+        'sensor_prediction_id': db_report.sensor_prediction_id,
+        'image_analysis_id': db_report.image_analysis_id,
+        'overall_status': db_report.overall_status,
+        'created_at': db_report.created_at.isoformat() if db_report.created_at else None,
+        'updated_at': db_report.updated_at.isoformat() if db_report.updated_at else None
+    }
 
     # Get linked sensor prediction
-    if report['sensor_prediction_id']:
-        cursor.execute(
-            "SELECT * FROM sensor_predictions WHERE id = ?",
-            (report['sensor_prediction_id'],)
-        )
-        sensor_row = cursor.fetchone()
-        if sensor_row:
-            sensor_data = dict(sensor_row)
-            sensor_data['recommendations'] = json.loads(sensor_data['recommendations']) if sensor_data['recommendations'] else []
-            report['sensor_prediction'] = sensor_data
+    if db_report.sensor_prediction_id:
+        sensor = db.query(SensorPrediction).filter(
+            SensorPrediction.id == db_report.sensor_prediction_id
+        ).first()
+        if sensor:
+            report['sensor_prediction'] = {
+                'id': sensor.id,
+                'damage_level': sensor.damage_level,
+                'confidence': sensor.confidence,
+                'recommendations': sensor.recommendations,
+                'created_at': sensor.created_at.isoformat() if sensor.created_at else None
+            }
 
     # Get linked image analysis
-    if report['image_analysis_id']:
-        cursor.execute(
-            "SELECT * FROM image_analyses WHERE id = ?",
-            (report['image_analysis_id'],)
-        )
-        image_row = cursor.fetchone()
-        if image_row:
-            image_data = dict(image_row)
-            image_data['damage_detected'] = bool(image_data['damage_detected'])
-            image_data['recommendations'] = json.loads(image_data['recommendations']) if image_data['recommendations'] else []
-            report['image_analysis'] = image_data
-
-    conn.close()
+    if db_report.image_analysis_id:
+        image = db.query(ImageAnalysis).filter(
+            ImageAnalysis.id == db_report.image_analysis_id
+        ).first()
+        if image:
+            report['image_analysis'] = {
+                'id': image.id,
+                'damage_detected': bool(image.damage_detected),
+                'damage_type': image.damage_type,
+                'confidence': image.confidence,
+                'recommendations': image.recommendations,
+                'created_at': image.created_at.isoformat() if image.created_at else None
+            }
 
     return report
 
@@ -267,65 +239,53 @@ async def update_report(
     request: Request,
     report_id: int,
     report: ReportCreate,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Update an existing report"""
-    conn = sqlite3.connect(DATABASE_PATH)
-    cursor = conn.cursor()
-
-    # Check if report exists
-    cursor.execute("SELECT id FROM reports WHERE id = ?", (report_id,))
-    if not cursor.fetchone():
-        conn.close()
+    """Update an existing report for the authenticated user"""
+    from models.user_model import Report
+    
+    user_id = str(current_user.id)
+    
+    # Check if report exists and belongs to the authenticated user
+    db_report = db.query(Report).filter(
+        Report.id == report_id,
+        Report.user_id == user_id
+    ).first()
+    
+    if not db_report:
         raise HTTPException(status_code=404, detail="Report not found")
 
     # Determine new overall status
     overall_status = determine_overall_status(
         report.sensor_prediction_id,
-        report.image_analysis_id
+        report.image_analysis_id,
+        db
     )
 
-    now = datetime.now().isoformat()
-
-    cursor.execute("""
-        UPDATE reports
-        SET building_name = ?, location = ?, inspector_name = ?, description = ?,
-            sensor_prediction_id = ?, image_analysis_id = ?, overall_status = ?,
-            updated_at = ?
-        WHERE id = ?
-    """, (
-        report.building_name,
-        report.location,
-        report.inspector_name,
-        report.description,
-        report.sensor_prediction_id,
-        report.image_analysis_id,
-        overall_status,
-        now,
-        report_id
-    ))
-
-    conn.commit()
-
-    # Fetch updated report
-    cursor.execute("SELECT * FROM reports WHERE id = ?", (report_id,))
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM reports WHERE id = ?", (report_id,))
-    row = cursor.fetchone()
-    conn.close()
+    # Update the report
+    db_report.building_name = report.building_name
+    db_report.location = report.location
+    db_report.inspector_name = report.inspector_name
+    db_report.description = report.description
+    db_report.sensor_prediction_id = report.sensor_prediction_id
+    db_report.image_analysis_id = report.image_analysis_id
+    db_report.overall_status = overall_status
+    
+    db.commit()
+    db.refresh(db_report)
 
     return ReportResponse(
-        id=row['id'],
-        building_name=row['building_name'],
-        location=row['location'],
-        inspector_name=row['inspector_name'],
-        description=row['description'],
-        sensor_prediction_id=row['sensor_prediction_id'],
-        image_analysis_id=row['image_analysis_id'],
-        overall_status=DamageLevel(row['overall_status']),
-        created_at=datetime.fromisoformat(row['created_at']),
-        updated_at=datetime.fromisoformat(row['updated_at'])
+        id=db_report.id,
+        building_name=db_report.building_name,
+        location=db_report.location,
+        inspector_name=db_report.inspector_name,
+        description=db_report.description,
+        sensor_prediction_id=db_report.sensor_prediction_id,
+        image_analysis_id=db_report.image_analysis_id,
+        overall_status=DamageLevel(db_report.overall_status),
+        created_at=db_report.created_at,
+        updated_at=db_report.updated_at
     )
 
 
@@ -334,19 +294,24 @@ async def update_report(
 async def delete_report(
     request: Request,
     report_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Delete a report"""
-    conn = sqlite3.connect(DATABASE_PATH)
-    cursor = conn.cursor()
+    """Delete a report for the authenticated user"""
+    from models.user_model import Report
     
-    cursor.execute("DELETE FROM reports WHERE id = ?", (report_id,))
-
-    if cursor.rowcount == 0:
-        conn.close()
+    user_id = str(current_user.id)
+    
+    # Check if report exists and belongs to the authenticated user
+    db_report = db.query(Report).filter(
+        Report.id == report_id,
+        Report.user_id == user_id
+    ).first()
+    
+    if not db_report:
         raise HTTPException(status_code=404, detail="Report not found")
 
-    conn.commit()
-    conn.close()
+    db.delete(db_report)
+    db.commit()
 
     return {"message": "Report deleted successfully"}

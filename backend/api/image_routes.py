@@ -14,9 +14,10 @@ from sqlalchemy.orm import Session
 
 from schemas.schemas import ImageAnalysisResponse
 from models.image_model import predict_image_damage_multiscale
-from models.user_model import ImageAnalysis
+from models.user_model import ImageAnalysis, User
 from core.config import get_settings
 from database import get_db
+from api.dependencies import get_current_user, get_current_user_optional
 
 router = APIRouter()
 settings = get_settings()
@@ -30,11 +31,14 @@ limiter = Limiter(key_func=get_remote_address)
 async def analyze_image(
     request: Request,
     file: UploadFile = File(...),
-    user_id: str = None,
+    user_id: str | None = None,
+    current_user: User | None = Depends(get_current_user_optional),
     db: Session = Depends(get_db)
 ):
     """
     Analyze an uploaded image for structural damage
+    
+    Authentication is optional. If no user is authenticated, analysis is saved under device session ID.
 
     Upload an image of a building/structure to detect:
     - Cracks
@@ -44,11 +48,13 @@ async def analyze_image(
     
     **Rate Limit:** 10 requests per minute per IP
     **Max File Size:** 10MB
-    **user_id**: (Optional) User ID for user-specific analytics
     """
-    # Get user_id from query parameter if not provided
-    if not user_id:
-        user_id = request.query_params.get("user_id")
+    # Priority: explicit query user_id -> request query param -> authenticated user -> anonymous
+    effective_user_id = (
+        user_id
+        or request.query_params.get("user_id")
+        or (str(current_user.id) if current_user else "anonymous")
+    )
     
     # Validate file type
     allowed_types = ["image/jpeg", "image/png", "image/jpg", "image/webp"]
@@ -81,8 +87,8 @@ async def analyze_image(
 
         # Save to database using SQLAlchemy ORM
         db_analysis = ImageAnalysis(
-            user_id=user_id,
-            session_id=user_id,  # Keep for backward compatibility
+            user_id=effective_user_id,
+            session_id=effective_user_id,  # Keep for backward compatibility
             image_path=file_path,
             damage_detected=1 if damage_detected else 0,
             damage_type=damage_type,

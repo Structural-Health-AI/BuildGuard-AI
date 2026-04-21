@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { getUserId } from '../utils/sessionManager'
 
 const API_BASE = '/api'
 
@@ -22,8 +23,6 @@ axios.interceptors.response.use(
       // Clear invalid token
       localStorage.removeItem('access_token')
       localStorage.removeItem('refresh_token')
-      // Redirect to login if needed
-      window.location.href = '/login'
     }
     return Promise.reject(error)
   }
@@ -31,12 +30,14 @@ axios.interceptors.response.use(
 
 export const api = {
   // Dashboard
-  getDashboardStats: () => {
-    return axios.get(`${API_BASE}/dashboard/stats`)
+  getDashboardStats: (userId) => {
+    const resolvedUserId = userId || getUserId()
+    return axios.get(`${API_BASE}/dashboard/stats?user_id=${encodeURIComponent(resolvedUserId)}`)
   },
 
-  getDashboardTrend: () => {
-    return axios.get(`${API_BASE}/dashboard/trend`)
+  getDashboardTrend: (userId) => {
+    const resolvedUserId = userId || getUserId()
+    return axios.get(`${API_BASE}/dashboard/trend?user_id=${encodeURIComponent(resolvedUserId)}`)
   },
 
   // Sensor Analysis
