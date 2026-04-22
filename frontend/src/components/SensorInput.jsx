@@ -104,7 +104,7 @@ function SensorInput() {
               <div className="grid grid-cols-3 gap-3">
                 {['accel_x', 'accel_y', 'accel_z'].map((field, i) => (
                   <div key={field}>
-                    <input type="number" step="0.01" name={field} value={formData[field]} onChange={handleInputChange}
+                    <input id={`accel-${i}`} type="number" step="0.01" name={field} value={formData[field]} onChange={handleInputChange}
                       placeholder={['X', 'Y', 'Z'][i]} required
                       className="w-full px-3 py-2.5 rounded-lg text-sm font-mono"
                       style={{ background: T.offWhite, border: `1px solid ${T.border}`, color: T.charcoal, outline: 'none' }}
@@ -120,10 +120,10 @@ function SensorInput() {
             {/* Strain & Temperature */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="flex items-center gap-1.5 text-xs font-medium mb-2 uppercase tracking-wider" style={{ color: T.textSecondary }}>
+                <label htmlFor="strain-input" className="flex items-center gap-1.5 text-xs font-medium mb-2 uppercase tracking-wider" style={{ color: T.textSecondary }}>
                   <Gauge className="h-3.5 w-3.5" /> Strain (με)
                 </label>
-                <input type="number" step="1" name="strain" value={formData.strain} onChange={handleInputChange}
+                <input id="strain-input" type="number" step="1" name="strain" value={formData.strain} onChange={handleInputChange}
                   placeholder="e.g., 150" required className="w-full px-3 py-2.5 rounded-lg text-sm font-mono"
                   style={{ background: T.offWhite, border: `1px solid ${T.border}`, color: T.charcoal, outline: 'none' }}
                   onFocus={(e) => (e.target.style.borderColor = T.terra)}
@@ -131,10 +131,10 @@ function SensorInput() {
                 />
               </div>
               <div>
-                <label className="flex items-center gap-1.5 text-xs font-medium mb-2 uppercase tracking-wider" style={{ color: T.textSecondary }}>
+                <label htmlFor="temperature-input" className="flex items-center gap-1.5 text-xs font-medium mb-2 uppercase tracking-wider" style={{ color: T.textSecondary }}>
                   <Thermometer className="h-3.5 w-3.5" /> Temperature (°C)
                 </label>
-                <input type="number" step="0.1" name="temperature" value={formData.temperature} onChange={handleInputChange}
+                <input id="temperature-input" type="number" step="0.1" name="temperature" value={formData.temperature} onChange={handleInputChange}
                   placeholder="e.g., 25" required className="w-full px-3 py-2.5 rounded-lg text-sm font-mono"
                   style={{ background: T.offWhite, border: `1px solid ${T.border}`, color: T.charcoal, outline: 'none' }}
                   onFocus={(e) => (e.target.style.borderColor = T.terra)}
@@ -146,8 +146,8 @@ function SensorInput() {
             {/* Building info */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-xs font-medium mb-2 block" style={{ color: T.textMuted }}>Building Name</label>
-                <input type="text" name="building_name" value={formData.building_name} onChange={handleInputChange}
+                <label htmlFor="building-name-input" className="text-xs font-medium mb-2 block" style={{ color: T.textMuted }}>Building Name</label>
+                <input id="building-name-input" type="text" name="building_name" value={formData.building_name} onChange={handleInputChange}
                   placeholder="e.g., Tower A" className="w-full px-3 py-2.5 rounded-lg text-sm"
                   style={{ background: T.offWhite, border: `1px solid ${T.border}`, color: T.charcoal, outline: 'none' }}
                   onFocus={(e) => (e.target.style.borderColor = T.terra)}
@@ -155,8 +155,8 @@ function SensorInput() {
                 />
               </div>
               <div>
-                <label className="text-xs font-medium mb-2 block" style={{ color: T.textMuted }}>Location</label>
-                <input type="text" name="location" value={formData.location} onChange={handleInputChange}
+                <label htmlFor="location-input" className="text-xs font-medium mb-2 block" style={{ color: T.textMuted }}>Location</label>
+                <input id="location-input" type="text" name="location" value={formData.location} onChange={handleInputChange}
                   placeholder="e.g., Floor 5" className="w-full px-3 py-2.5 rounded-lg text-sm"
                   style={{ background: T.offWhite, border: `1px solid ${T.border}`, color: T.charcoal, outline: 'none' }}
                   onFocus={(e) => (e.target.style.borderColor = T.terra)}

@@ -109,37 +109,37 @@ function ReportForm() {
             <h3 className="text-[10px] font-semibold uppercase tracking-[0.15em] mb-4" style={{ color: T.terra }}>Basic Information</h3>
             <div className="space-y-4">
               <div>
-                <label className="flex items-center gap-1.5 text-xs font-medium mb-2" style={{ color: T.textSecondary }}>
+                <label htmlFor="building-name" className="flex items-center gap-1.5 text-xs font-medium mb-2" style={{ color: T.textSecondary }}>
                   <Building className="h-3.5 w-3.5" /> Building Name *
                 </label>
-                <input type="text" name="building_name" value={formData.building_name} onChange={handleInputChange}
+                <input id="building-name" type="text" name="building_name" value={formData.building_name} onChange={handleInputChange}
                   placeholder="e.g., Central Tower, Bridge A" required
                   className="w-full px-3 py-2.5 rounded-lg text-sm" style={inputStyle}
                   onFocus={inputFocus} onBlur={inputBlur} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="flex items-center gap-1.5 text-xs font-medium mb-2" style={{ color: T.textSecondary }}>
+                  <label htmlFor="location" className="flex items-center gap-1.5 text-xs font-medium mb-2" style={{ color: T.textSecondary }}>
                     <MapPin className="h-3.5 w-3.5" /> Location *
                   </label>
-                  <input type="text" name="location" value={formData.location} onChange={handleInputChange}
+                  <input id="location" type="text" name="location" value={formData.location} onChange={handleInputChange}
                     placeholder="e.g., Downtown Area" required
                     className="w-full px-3 py-2.5 rounded-lg text-sm" style={inputStyle}
                     onFocus={inputFocus} onBlur={inputBlur} />
                 </div>
                 <div>
-                  <label className="flex items-center gap-1.5 text-xs font-medium mb-2" style={{ color: T.textSecondary }}>
+                  <label htmlFor="inspector-name" className="flex items-center gap-1.5 text-xs font-medium mb-2" style={{ color: T.textSecondary }}>
                     <User className="h-3.5 w-3.5" /> Inspector *
                   </label>
-                  <input type="text" name="inspector_name" value={formData.inspector_name} onChange={handleInputChange}
+                  <input id="inspector-name" type="text" name="inspector_name" value={formData.inspector_name} onChange={handleInputChange}
                     placeholder="Your name" required
                     className="w-full px-3 py-2.5 rounded-lg text-sm" style={inputStyle}
                     onFocus={inputFocus} onBlur={inputBlur} />
                 </div>
               </div>
               <div>
-                <label className="text-xs font-medium mb-2 block" style={{ color: T.textMuted }}>Description (optional)</label>
-                <textarea name="description" value={formData.description} onChange={handleInputChange}
+                <label htmlFor="description" className="text-xs font-medium mb-2 block" style={{ color: T.textMuted }}>Description (optional)</label>
+                <textarea id="description" name="description" value={formData.description} onChange={handleInputChange}
                   placeholder="Additional notes about the inspection..." rows={3}
                   className="w-full px-3 py-2.5 rounded-lg text-sm resize-none" style={inputStyle}
                   onFocus={inputFocus} onBlur={inputBlur} />
@@ -177,7 +177,7 @@ function ReportForm() {
                   <div className="grid grid-cols-3 gap-3">
                     {['accel_x', 'accel_y', 'accel_z'].map((field, i) => (
                       <div key={field}>
-                        <input type="number" step="0.01" name={field} value={sensorData[field]} onChange={handleSensorChange}
+                        <input id={`report-accel-${i}`} type="number" step="0.01" name={field} value={sensorData[field]} onChange={handleSensorChange}
                           placeholder={['X', 'Y', 'Z'][i]}
                           className="w-full px-3 py-2.5 rounded-lg text-sm font-mono"
                           style={{ background: T.white, border: `1px solid ${T.border}`, color: T.charcoal, outline: 'none' }}
@@ -189,19 +189,19 @@ function ReportForm() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="flex items-center gap-1.5 text-xs font-medium mb-2 uppercase tracking-wider" style={{ color: T.textSecondary }}>
+                    <label htmlFor="report-strain" className="flex items-center gap-1.5 text-xs font-medium mb-2 uppercase tracking-wider" style={{ color: T.textSecondary }}>
                       <Gauge className="h-3.5 w-3.5" /> Strain (με)
                     </label>
-                    <input type="number" step="0.1" name="strain" value={sensorData.strain} onChange={handleSensorChange}
+                    <input id="report-strain" type="number" step="0.1" name="strain" value={sensorData.strain} onChange={handleSensorChange}
                       placeholder="e.g., 100" className="w-full px-3 py-2.5 rounded-lg text-sm font-mono"
                       style={{ background: T.white, border: `1px solid ${T.border}`, color: T.charcoal, outline: 'none' }}
                       onFocus={inputFocus} onBlur={inputBlur} />
                   </div>
                   <div>
-                    <label className="flex items-center gap-1.5 text-xs font-medium mb-2 uppercase tracking-wider" style={{ color: T.textSecondary }}>
+                    <label htmlFor="report-temperature" className="flex items-center gap-1.5 text-xs font-medium mb-2 uppercase tracking-wider" style={{ color: T.textSecondary }}>
                       <Thermometer className="h-3.5 w-3.5" /> Temperature (°C)
                     </label>
-                    <input type="number" step="0.1" name="temperature" value={sensorData.temperature} onChange={handleSensorChange}
+                    <input id="report-temperature" type="number" step="0.1" name="temperature" value={sensorData.temperature} onChange={handleSensorChange}
                       placeholder="e.g., 25" className="w-full px-3 py-2.5 rounded-lg text-sm font-mono"
                       style={{ background: T.white, border: `1px solid ${T.border}`, color: T.charcoal, outline: 'none' }}
                       onFocus={inputFocus} onBlur={inputBlur} />
