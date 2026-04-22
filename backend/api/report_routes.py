@@ -132,18 +132,19 @@ async def list_reports(
     request: Request,
     skip: int = 0,
     limit: int = 50,
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_current_user_optional),
     db: Session = Depends(get_db)
 ):
-    """Get all reports for the authenticated user with pagination"""
+    """Get all reports for the authenticated user with pagination. Authentication is optional."""
     from models.user_model import Report
     
-    user_id = str(current_user.id)
+    # Get user_id from authenticated user or query parameter
+    user_id = str(current_user.id) if current_user else request.query_params.get("user_id", "anonymous")
     
-    # Get total count for authenticated user
+    # Get total count for user
     total = db.query(Report).filter(Report.user_id == user_id).count()
 
-    # Get paginated results for authenticated user
+    # Get paginated results for user
     db_reports = db.query(Report).filter(
         Report.user_id == user_id
     ).order_by(Report.created_at.desc()).offset(skip).limit(limit).all()
@@ -171,15 +172,15 @@ async def list_reports(
 async def get_report(
     request: Request,
     report_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_current_user_optional),
     db: Session = Depends(get_db)
 ):
-    """Get a specific report with all linked analyses for the authenticated user"""
+    """Get a specific report with all linked analyses. Authentication is optional."""
     from models.user_model import Report, SensorPrediction, ImageAnalysis
     
-    user_id = str(current_user.id)
+    user_id = str(current_user.id) if current_user else request.query_params.get("user_id", "anonymous")
     
-    # Get the report and verify it belongs to the authenticated user
+    # Get the report and verify it belongs to the user
     db_report = db.query(Report).filter(
         Report.id == report_id,
         Report.user_id == user_id
@@ -239,13 +240,13 @@ async def update_report(
     request: Request,
     report_id: int,
     report: ReportCreate,
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_current_user_optional),
     db: Session = Depends(get_db)
 ):
-    """Update an existing report for the authenticated user"""
+    """Update an existing report. Authentication is optional."""
     from models.user_model import Report
     
-    user_id = str(current_user.id)
+    user_id = str(current_user.id) if current_user else request.query_params.get("user_id", "anonymous")
     
     # Check if report exists and belongs to the authenticated user
     db_report = db.query(Report).filter(
@@ -294,13 +295,13 @@ async def update_report(
 async def delete_report(
     request: Request,
     report_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_current_user_optional),
     db: Session = Depends(get_db)
 ):
-    """Delete a report for the authenticated user"""
+    """Delete a report. Authentication is optional."""
     from models.user_model import Report
     
-    user_id = str(current_user.id)
+    user_id = str(current_user.id) if current_user else request.query_params.get("user_id", "anonymous")
     
     # Check if report exists and belongs to the authenticated user
     db_report = db.query(Report).filter(
