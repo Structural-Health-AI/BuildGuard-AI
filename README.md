@@ -22,6 +22,25 @@ BuildGuard-AI combines **image-based defect detection** and **sensor data analys
 
 ---
 
+## 📸 Screenshots
+
+### Landing Page
+![Landing Page](./docs/screenshots/01-landing-page.png)
+
+### Dashboard - Structural Health Overview
+![Dashboard Overview](./docs/screenshots/02-dashboard.png)
+
+### Sensor Analysis
+![Sensor Analysis](./docs/screenshots/03-sensor-analysis.png)
+
+### Image Analysis - Defect Detection
+![Image Analysis](./docs/screenshots/04-image-analysis.png)
+
+### Inspection Reports
+![Inspection Reports](./docs/screenshots/05-reports.png)
+
+---
+
 ## 🏛️ System Architecture
 
 ```
